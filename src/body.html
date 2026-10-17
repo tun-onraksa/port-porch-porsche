@@ -1,0 +1,87 @@
+
+<div class="app" style="height:100%">
+  <header class="topbar">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><path d="M14 2l11 6v12l-11 6-11-6V8z" fill="#2457f5"/><path d="M14 2l11 6-11 6-11-6z" fill="#5a83ff"/><path d="M14 14v12l11-6V8z" fill="#1a3fc0"/><path d="M9 9.5l5 2.8 5-2.8" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      PortTable
+    </div>
+    <div style="position:relative">
+      <button class="site" id="siteBtn" aria-haspopup="true" aria-expanded="false">
+        <span class="code" id="siteCode">TD</span>
+        <span><span class="nm" id="siteName">Today</span><span class="sb" id="siteSub">5/12 lifeline on time</span></span>
+        <svg class="chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4.5l3 3 3-3"/></svg>
+      </button>
+      <div class="menu" id="siteMenu" hidden></div>
+    </div>
+    <div class="play">
+      <button class="ib" id="playBtn" aria-label="Play"><span id="playIco"></span></button>
+      <button class="ib" id="stormBtn" title="Jump to 1:30 PM, just before the storm (S)">Jump to storm <kbd>S</kbd></button>
+      <div class="scrubwrap"><span class="storm" id="stormBand"></span><input type="range" id="scrub" min="0" max="143" step="1" value="45" aria-label="Simulation time"></div>
+      <button class="ib" id="speedBtn" aria-label="Playback speed">1×</button>
+      <span class="clock" id="clock"><i></i><span id="clockTxt">Sim 13:30</span></span>
+    </div>
+    <button class="ib" id="swapBtn" title="Switch between Today and PortTable at the same moment (T)">Today ↔ PortTable <kbd>T</kbd></button>
+    <button class="ib" id="helpBtn" aria-label="How the simulation works" aria-haspopup="dialog">?</button>
+  </header>
+
+  <main class="stage">
+    <div class="viewport" id="viewport">
+      <div id="scene" style="position:absolute;inset:0" role="img" aria-label="3D model of the port: ships at anchor, four berths with cranes, a container yard, a truck gate and five city destinations"></div>
+      <div class="labels" id="labels" aria-hidden="true"></div>
+      <div class="camtools card" role="group" aria-label="Camera">
+        <button id="camIn" aria-label="Zoom in"><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg></button>
+        <button id="camOut" aria-label="Zoom out"><svg width="16" height="16" viewBox="0 0 16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8h10"/></svg></button>
+        <button id="camL" aria-label="Rotate left"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.5 6A5 5 0 1 1 3 9.5"/><path d="M3 2.5V6h3.5"/></svg></button>
+        <button id="camR" aria-label="Rotate right"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12.5 6A5 5 0 1 0 13 9.5"/><path d="M13 2.5V6H9.5"/></svg></button>
+        <button id="camHome" aria-label="Reset view"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2.5 7.5L8 3l5.5 4.5V13h-11z"/></svg></button>
+      </div>
+      <div class="decbar" id="decBar" hidden role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>
+        <div class="grow"><b id="decTitle">Decision needed</b><span id="decText"></span><em id="decSug"></em></div>
+        <button class="ib" id="decOpen">Review</button>
+      </div>
+      <div class="toast" id="toast" hidden><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 16a4 4 0 0 1-.8-7.9A6 6 0 0 1 18 9a3.5 3.5 0 0 1 0 7"/><path d="M9 18l-1 3M13 18l-1 3M17 18l-1 3"/></svg><div><b>2 PM · Storm hits. Berths B3 and B4 close.</b><span id="toastSub">Still first come, first served.</span></div></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+    <aside class="inspector card" id="inspector" aria-live="polite"></aside>
+    <section class="timeline card" id="timeline" aria-label="Lifeline order tracking"></section>
+    <section class="ops card" aria-label="Operations">
+      <div class="tabs" role="tablist" id="tabs">
+        <button role="tab" data-tab="berths" aria-selected="true">Berths</button>
+        <button role="tab" data-tab="orders" aria-selected="false">Orders</button>
+        <button role="tab" data-tab="ships" aria-selected="false">Ships</button>
+        <button role="tab" data-tab="log" aria-selected="false">Decisions</button>
+      </div>
+      <ul class="oplist" id="oplist"></ul>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="howModal" hidden role="dialog" aria-modal="true" aria-labelledby="howTitle">
+  <div class="card">
+    <div class="mhead"><h2 id="howTitle">How PortTable works</h2><button class="btn" id="howClose" style="flex:none;padding:0 14px">Close</button></div>
+    <ul>
+      <li>Ships wait at anchor, unload at four berths, sit in the container yard, then leave by truck through the gate to the city.</li>
+      <li><b>Life 1 (normal day):</b> PortTable books berth windows and truck pickup slots for every terminal. We assume booked slots let the gate move 12 trucks every 10 minutes instead of 10 walk-up trucks. That assumption is the only difference between Today and "Life 1 only".</li>
+      <li><b>Life 2 (storm, 2 PM to midnight):</b> wind closes B3 and B4. When the forecast arrives at 11 AM, PortTable switches from first come, first served to lifeline priorities agreed in advance with county emergency managers: medical, then energy, then food and water, then industry. Lifeline ships stay off the berths that will close, a lifeline ship can swap into a sheltered berth ahead of a ship with only low-tier cargo, and the yard sends lifeline cargo to the gate first. Before 11 AM the autopilot and "Life 1 only" run identically.</li>
+      <li><b>Storm drill (you decide):</b> PortTable stops and asks before each move that changes whether a lifeline order arrives on time: declaring lifeline mode, swapping a ship into a sheltered berth, digging buried boxes out. It runs the rest of the shift both ways and suggests the option that gets more (and more critical) lifeline cargo out on time. Moves that change nothing for lifeline orders it handles itself and logs. Every call lands in the Decisions tab, where you can revisit it.</li>
+      <li><b>Dig</b> pulls priority containers out from under the stack. Each one costs two crane moves, so digging slows everything else.</li>
+      <li><b>Forecast times</b> in the order timeline (in italics) come from the simulation running ahead, the way a digital twin projects the rest of the shift.</li>
+      <li>"Cargo value" counts only delivered boxes. One box stands for a batch of containers; values are illustrative. Suggestions weigh on-time lifeline orders first (medical highest), then cargo moved.</li>
+      <li><b>Controls:</b> drag to orbit, scroll to zoom, click any ship, crane, the yard, the gate, a truck or a building. Keys: <kbd>Space</kbd> play, <kbd>T</kbd> Today ↔ PortTable, <kbd>S</kbd> jump to storm, <kbd>←</kbd> <kbd>→</kbd> step 10 minutes, <kbd>Esc</kbd> clear selection.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="modal" id="reportModal" hidden role="dialog" aria-modal="true" aria-labelledby="repTitle">
+  <div class="card report">
+    <div class="mhead"><h2 id="repTitle">Shift report</h2><button class="btn" id="repClose" style="flex:none;padding:0 14px">Close</button></div>
+    <table><thead><tr><th>Plan</th><th>Lifeline on time</th><th>Medical late</th><th>Boxes delivered</th><th>Cargo value</th></tr></thead><tbody id="repBody"></tbody></table>
+    <p id="repNote"></p>
+    <div class="btnrow"><button class="btn" id="repEdit">Run the storm drill</button><button class="btn primary" id="repReplay">Replay the storm</button></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
