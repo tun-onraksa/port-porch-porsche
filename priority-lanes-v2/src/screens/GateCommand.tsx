@@ -1,0 +1,333 @@
+import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+import { Boxes, Check, CircleCheck, DollarSign, Gauge, OctagonAlert, PowerOff, RotateCcw, Search, Snowflake, Truck, Undo2 } from 'lucide-react'
+import { useApp } from '../state.tsx'
+import type { Approval } from '../state.tsx'
+import type { Evaluation } from '../engine/types.ts'
+import type { SimResult } from '../engine/simulate.ts'
+import { LANES, backgroundPerHour, laneDown, openLanes } from '../engine/context.ts'
+import { HOUR, fmtTime } from '../engine/time.ts'
+import { RATES, usd, usdFull } from '../engine/rates.ts'
+import { ACTIONS, actionLabel } from '../engine/actions.ts'
+import { HERO_ID } from '../data/scenario.ts'
+import { ActionChip, Btn, CargoIcon, Countdown, cx, HoldChips, Kpi, Panel, RealTag, ReeferCell, SampleTag, SeverityBadge, SimTag, T49Urgency, UrgencyPill } from '../ui/primitives.tsx'
+import { ScreenHeader, StageStrip } from '../ui/layout.tsx'
+
+type Filter = 'all' | 'attention' | 'blocked' | 'reefer' | 'real'
+
+export function GateCommand() {
+  const app = useApp()
+  const { evals, ctx, mode } = app
+  const now = ctx.now
+  const queued = evals.filter((e) => e.box.gate.truck_arrived_at)
+  const open = openLanes(ctx, now)
+  const capNow = open.length * RATES.laneThroughput
+  const nextHour = evals.filter((e) => e.truckArrive !== null && e.truckArrive > now && e.truckArrive <= now + HOUR).length
+  const demand = queued.length + nextHour + backgroundPerHour(now)
+  const charges = evals.reduce((s, e) => s + e.dailyCharges, 0)
+  const pastDue = evals.filter((e) => e.dailyCharges > 0).length
+  const critical = evals.filter((e) => e.severity === 'critical')
+  const reefers = evals.filter((e) => e.reefer)
+  const reeferAlarm = reefers.filter((e) => e.reefer!.alarm || e.reefer!.dev > 2)
+  const releasable = evals.filter((e) => e.rec.releasable).length
+  const outage = ctx.outages[0]
+
+  return (
+    <div>
+      <ScreenHeader
+        title="Gate Command"
+        kicker={<><span>Screen 1</span><SimTag>Simulated · Thu Oct 29, 07:30</SimTag>{mode === 'ordinary' && <span className="rounded bg-good/15 px-1.5 text-[11px] font-semibold text-good">Ordinary day</span>}</>}
+        sub={mode === 'ordinary'
+          ? 'An ordinary morning: all 8 lanes open. The same engine still clears up conflicts, warns on deadlines and watches reefers.'
+          : `${outage ? `${outage.reason} took lanes ${outage.lanes[0]}–${outage.lanes[outage.lanes.length - 1]} down until ${fmtTime(outage.end)}. ` : ''}${queued.length} trucks are queued. One suspicious box gets inspected; the other ${evals.length - 1} keep moving.`}
+      />
+      <StageStrip active="gate" />
+
+      {/* lanes */}
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8" role="list" aria-label="Gate lanes">
+        {LANES.map((l) => {
+          const down = laneDown(ctx, l.id, now)
+          const served = Object.values(app.full.outcomes).filter((o) => o.lane === l.id && o.result === 'served').length
+          return (
+            <div role="listitem" key={l.id} className={cx('rounded-xl border px-3 py-2.5', down ? 'border-crit/50 bg-crit/[0.07]' : 'border-line bg-panel')}>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-[13px] font-semibold">Lane {l.id}</span>
+                {down ? (
+                  <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-ink"><PowerOff size={13} className="text-crit" aria-hidden /> Down</span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-ink"><CircleCheck size={13} className="text-good" aria-hidden /> Open</span>
+                )}
+              </div>
+              <div className="mt-1 text-[11.5px] leading-snug text-muted">{down ? `${down.reason} · ETA ${fmtTime(down.end)}` : l.role}</div>
+              <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-2">
+                <span>{down ? '0' : RATES.laneThroughput}/hr</span>
+                <span>{served ? `${served} planned` : ''}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.95fr)]">
+        <div className="grid grid-cols-2 content-start gap-3 sm:grid-cols-3">
+          <Kpi icon={Boxes} label="Boxes for today’s gate" value={evals.length} sub={`${releasable} releasable · ${evals.length - releasable} blocked or pending`} />
+          <Kpi icon={Truck} tone={queued.length > 20 ? 'warn' : undefined} label="Trucks queued" value={queued.length} sub="first arrived 06:35" />
+          <Kpi icon={Gauge} tone={demand > capNow ? 'crit' : 'good'} label="Capacity vs demand" value={<>{capNow}<span className="text-[15px] text-muted"> / {demand}</span></>} sub={`${open.length} of 8 lanes · trucks/hr vs next hour incl. queue`} />
+          <Kpi icon={DollarSign} tone={charges ? 'warn' : undefined} label="Charges accruing" value={`${usd(charges)}/day`} sub={`${pastDue} boxes past deadline · sample rates`} />
+          <Kpi icon={OctagonAlert} tone={critical.length ? 'crit' : 'good'} label="Critical conflicts" value={critical.length} sub={app.view === 'security' ? 'see Security view' : 'Inspection requested'} onClick={() => app.go('box', critical[0]?.box.id ?? HERO_ID)} />
+          <Kpi icon={Snowflake} tone={reeferAlarm.length ? 'warn' : 'good'} label="Reefers off setpoint" value={reeferAlarm.length} sub={`of ${reefers.length} plugged in · alarms + >2°C`} />
+          <PlanAtAGlance />
+        </div>
+        <BluntVsGentle />
+      </div>
+
+      <Queue />
+    </div>
+  )
+}
+
+function PlanAtAGlance() {
+  const app = useApp()
+  const counts = ACTIONS.map((a) => ({ ...a, n: app.evals.filter((e) => e.rec.key === a.key).length })).filter((a) => a.n)
+  const cantWait = app.evals.filter((e) => e.rec.releasable && e.truckArrive !== null && e.truckArrive < app.ctx.dayEnd).slice(0, 4)
+  return (
+    <div className="col-span-2 rounded-xl border border-line bg-panel px-3.5 py-3 sm:col-span-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-[12px] font-medium text-muted">Plan at a glance · gentlest step per box</span>
+        <span className="text-[11.5px] text-dim">0 lane closures · 0 terminal holds</span>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {counts.map((c) => <span key={c.key} className="inline-flex items-center gap-1"><ActionChip k={c.key} size="sm" /><span className="font-mono text-[12px] text-ink">{c.n}</span></span>)}
+      </div>
+      <div className="mt-3 text-[12px] font-medium text-muted">Can’t wait: first out</div>
+      <ol className="mt-1 grid gap-1 sm:grid-cols-2">
+        {cantWait.map((e, i) => (
+          <li key={e.box.id}>
+            <button onClick={() => app.go('box', e.box.id)} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[12.5px] hover:bg-panel-2">
+              <span className="font-mono text-[11px] text-dim">{i + 1}</span>
+              <CargoIcon kind={e.box.kind} />
+              <span className="min-w-0 flex-1 truncate text-ink">{e.box.cargo}</span>
+              <span className="font-mono text-[11.5px] text-ink-2">{app.full.assignments[e.box.id]?.text}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+function Row({ label, blunt, plan, better, hint }: { label: string; blunt: ReactNode; plan: ReactNode; better?: boolean; hint?: string }) {
+  return (
+    <tr className="border-t border-line align-top">
+      <th scope="row" className="py-2 pr-3 text-left text-[12.5px] font-medium text-ink-2" title={hint}>{label}</th>
+      <td className="py-2 pr-3 text-[13px] text-ink">{blunt}</td>
+      <td className={cx('py-2 text-[13px] text-ink', better && 'font-semibold')}>
+        {plan}
+      </td>
+    </tr>
+  )
+}
+
+function outcomeList(items: { cargo: string }[], empty = 'None') {
+  if (!items.length) return <span className="inline-flex items-center gap-1 text-ink"><CircleCheck size={13} className="text-good" aria-hidden />{empty}</span>
+  const names = [...new Set(items.map((i) => i.cargo))]
+  return <span title={names.join(', ')}>{items.length} · {names.slice(0, 2).join(', ')}{names.length > 2 ? ` +${names.length - 2}` : ''}</span>
+}
+
+function BluntVsGentle() {
+  const app = useApp()
+  const { blunt, plan, full, evals, mode, pending } = app
+  const approved = evals.length - pending
+  const fully = pending === 0
+  const insulin = (s: SimResult) => {
+    const missed = s.missedDeadlines.some((m) => m.boxId === 'sim-0002')
+    return missed ? <span className="inline-flex items-center gap-1"><OctagonAlert size={13} className="text-crit" aria-hidden /> Misses 17:00</span> : <span className="inline-flex items-center gap-1"><CircleCheck size={13} className="text-good" aria-hidden /> Out {fmtTime(s.outcomes['sim-0002']?.at ?? 0)}</span>
+  }
+  const risk = (s: SimResult) => {
+    if (!s.cargoAtRisk.length) return <span className="inline-flex items-center gap-1"><CircleCheck size={13} className="text-good" aria-hidden /> None</span>
+    const v = s.cargoAtRisk.reduce((x, c) => x + (c.value ?? 0), 0)
+    const unknown = s.cargoAtRisk.filter((c) => c.value === null).length
+    return <span title={s.cargoAtRisk.map((c) => c.cargo).join(', ')}>{usd(v)}{unknown ? ` + ${unknown} undeclared` : ''}<span className="block text-[11.5px] font-normal text-muted">{s.cargoAtRisk.map((c) => c.cargo).slice(0, 3).join(', ')}</span></span>
+  }
+  const saved = blunt.total ? Math.round((1 - plan.total / blunt.total) * 100) : 0
+  const savedFull = blunt.total ? Math.round((1 - full.total / blunt.total) * 100) : 0
+
+  return (
+    <Panel
+      title="Blunt move vs Priority Lanes"
+      sub={mode === 'ordinary' ? 'Without the tool: first-come-first-served, problems found at the gate.' : 'Blunt: hold every import release until lanes return at 14:00, then first-come-first-served.'}
+      right={<><SampleTag /><SimTag /></>}
+      bodyClass="px-4 pb-4 pt-1"
+    >
+      <table className="w-full">
+        <thead>
+          <tr className="text-left text-[11px] tracking-wider text-muted uppercase">
+            <th className="py-2 font-semibold" />
+            <th className="py-2 font-semibold"><span className="inline-flex items-center gap-1"><PowerOff size={12} className="text-crit" aria-hidden />{blunt.label}</span></th>
+            <th className="py-2 font-semibold"><span className="inline-flex items-center gap-1"><CircleCheck size={12} className="text-good" aria-hidden />Plan · {fully ? 'approved' : `${approved}/${evals.length} approved`}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <Row label="Trucks stranded > 3h" blunt={<span className="font-mono text-[18px]">{blunt.stranded3h}</span>} plan={<span className="font-mono text-[18px]">{plan.stranded3h}</span>} better={plan.stranded3h < blunt.stranded3h} />
+          <Row label="Projected charges + truck waiting" hint="Truck waiting beyond a 1h turn at $90/h, wasted trips, demurrage + storage for boxes that miss deadlines, action costs. Exam fees excluded (same in both)."
+            blunt={<span className="font-mono text-[18px]">{usdFull(blunt.total)}</span>}
+            plan={<span className="font-mono text-[18px]">{usdFull(plan.total)} {saved > 0 && <span className="ml-1 rounded bg-good/15 px-1.5 py-px font-sans text-[12px] font-semibold text-good">−{saved}%</span>}</span>} better />
+          <Row label="Cargo at risk (spoilage)" blunt={risk(blunt)} plan={risk(plan)} />
+          <Row label="Boxes held / inspected"
+            blunt={blunt.heldAll ? `All ${blunt.heldBoxes} held until 14:00 · 0 inspected` : `${blunt.missedDeadlines.length} miss deadlines · holds found at the lane`}
+            plan={`${plan.inspectedForConflict} inspected for a conflict · ${plan.examsExpedited} exams expedited · ${plan.rescheduled} moved later`} />
+          <Row label="Insulin, deadline 17:00" blunt={insulin(blunt)} plan={insulin(plan)} />
+          <Row label="Rail cutoffs missed" blunt={outcomeList(blunt.railMissed)} plan={outcomeList(plan.railMissed)} />
+          <Row label="Medical / reefer / relief / rail out by 11:00" blunt={`${blunt.priority.clearedBy11} of ${blunt.priority.total}`} plan={`${plan.priority.clearedBy11} of ${plan.priority.total}`} />
+        </tbody>
+      </table>
+      <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+        {mode === 'drill' ? (
+          <p className="text-[12.5px] text-warn">Drill mode: the plan column shows the proposed plan. Nothing can be approved.</p>
+        ) : fully ? (
+          <>
+            <span className="flash-in inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-semibold text-good"><CircleCheck size={16} aria-hidden /> Plan approved. Notifications drafted.</span>
+            <Btn size="sm" variant="quiet" onClick={app.resetApprovals}><RotateCcw size={13} aria-hidden /> Reset demo</Btn>
+          </>
+        ) : (
+          <>
+            <Btn size="lg" variant="good" onClick={app.approveAll}><Check size={17} aria-hidden /> Approve plan ({pending} actions)</Btn>
+            <span className="text-[12.5px] leading-snug text-muted">If fully approved: <span className="font-mono text-ink">{usdFull(full.total)}</span> (−{savedFull}%), {full.stranded3h} stranded. Unapproved boxes run first-come-first-served.</span>
+          </>
+        )}
+      </div>
+    </Panel>
+  )
+}
+
+function DecisionCell({ e, a }: { e: Evaluation; a: Approval | undefined }) {
+  const app = useApp()
+  if (app.mode === 'drill') return <span className="text-[11.5px] text-warn">Drill</span>
+  if (!a) {
+    return (
+      <Btn size="sm" onClick={() => app.approve(e)} title={`Approve: ${actionLabel(e.rec.key)}`}>
+        <Check size={13} aria-hidden /> Approve
+      </Btn>
+    )
+  }
+  const meta = { approved: ['Approved', 'text-good'], modified: ['Modified', 'text-warn'], rejected: ['Rejected', 'text-crit'] }[a.state]
+  return (
+    <span className="inline-flex items-center gap-1 text-[12px] font-semibold whitespace-nowrap" title={a.reason}>
+      {a.state === 'approved' ? <CircleCheck size={13} className="text-good" aria-hidden /> : <Undo2 size={13} className={meta[1]} aria-hidden />}
+      <span className="text-ink">{meta[0]}</span>
+      {a.state === 'modified' && <span className="text-muted">→ {actionLabel(a.key)}</span>}
+    </span>
+  )
+}
+
+function Queue() {
+  const app = useApp()
+  const { evals, approvals, plan, full, view } = app
+  const [filter, setFilter] = useState<Filter>('all')
+  const [q, setQ] = useState('')
+  const [showAll, setShowAll] = useState(false)
+
+  const rows = useMemo(() => {
+    let r = evals
+    if (filter === 'attention') r = r.filter((e) => e.rec.key !== 'release' || e.conflicts.some((c) => c.severity !== 'minor'))
+    if (filter === 'blocked') r = r.filter((e) => !e.rec.releasable)
+    if (filter === 'reefer') r = r.filter((e) => e.box.equipment_type === 'reefer')
+    if (filter === 'real') r = r.filter((e) => e.box.real)
+    if (q.trim()) {
+      const s = q.trim().toLowerCase()
+      r = r.filter((e) => e.box.number.toLowerCase().includes(s) || e.box.cargo.toLowerCase().includes(s))
+    }
+    return r
+  }, [evals, filter, q])
+  const visible = showAll || q || filter !== 'all' ? rows : rows.slice(0, 30)
+  const count = (f: Filter) => (f === 'all' ? evals.length : f === 'attention' ? evals.filter((e) => e.rec.key !== 'release' || e.conflicts.some((c) => c.severity !== 'minor')).length : f === 'blocked' ? evals.filter((e) => !e.rec.releasable).length : f === 'reefer' ? evals.filter((e) => e.box.equipment_type === 'reefer').length : 4)
+
+  return (
+    <Panel
+      title="Ranked box queue"
+      sub="Ranked by our urgency score, with Terminal49’s own urgency beside it. Click a row for the full reasoning. Grey slots are proposed; nothing happens until a person approves."
+      bodyClass="p-0"
+      right={
+        <label className="relative">
+          <Search size={14} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted" aria-hidden />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Container or cargo" aria-label="Search boxes"
+            className="h-8 w-48 rounded-lg border border-line-2 bg-bg pr-2 pl-8 text-[12.5px] text-ink placeholder:text-dim" />
+        </label>
+      }
+    >
+      <div className="scroll-thin flex gap-1 overflow-x-auto border-b border-line px-3 py-2" role="tablist" aria-label="Filter boxes">
+        {([['all', 'All'], ['attention', 'Needs a decision'], ['blocked', 'Blocked'], ['reefer', 'Reefers'], ['real', 'Real boxes']] as [Filter, string][]).map(([f, l]) => (
+          <button key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+            className={cx('shrink-0 rounded-md px-2.5 py-1 text-[12.5px] font-medium', filter === f ? 'bg-panel-3 text-ink' : 'text-muted hover:text-ink')}>
+            {l} <span className="font-mono text-[11px] text-dim">{count(f)}</span>
+          </button>
+        ))}
+      </div>
+      <div className="scroll-thin overflow-x-auto">
+        <table className="w-full min-w-[1080px] text-left">
+          <thead className="text-[10.5px] tracking-wider text-muted uppercase">
+            <tr className="border-b border-line">
+              {['#', 'Container', 'Cargo', 'Urgency · T49', 'Conflict · holds', 'Deadline', 'Reefer', 'Lane / slot', 'Recommended · decision'].map((h) => (
+                <th key={h} scope="col" className="px-2.5 py-2 font-semibold whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((e) => {
+              const rank = evals.indexOf(e) + 1
+              const a = approvals[e.box.id]
+              const asg = (a ? plan : full).assignments[e.box.id]
+              const top = [...e.conflicts].sort((x, y) => rank3(y.severity) - rank3(x.severity))[0]
+              const securityCase = e.security.length > 0
+              const isHero = e.box.id === HERO_ID
+              return (
+                <tr key={e.box.id} onClick={() => app.go('box', e.box.id)}
+                  className={cx('cursor-pointer border-b border-line/70 text-[12.5px] transition-colors hover:bg-panel-2', isHero && 'bg-crit/[0.05]')}>
+                  <td className="px-2.5 py-2 font-mono text-[11.5px] text-dim">{rank}</td>
+                  <td className="px-2.5 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[13px] font-semibold text-ink">{e.box.number}</span>
+                      {e.box.real && <RealTag />}
+                    </div>
+                    <div className="text-[11px] whitespace-nowrap text-dim" title={e.box.pod_vessel_name}>{e.box.equipment_length_ft}' {e.box.equipment_type}</div>
+                  </td>
+                  <td className="px-2.5 py-2">
+                    <span className="inline-flex max-w-[132px] items-center gap-1.5 text-ink-2" title={e.box.cargo}><CargoIcon kind={e.box.kind} /> <span className="truncate">{e.box.cargo}</span></span>
+                  </td>
+                  <td className="px-2.5 py-2">
+                    <UrgencyPill u={e.urgency} size="sm" />
+                    <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-dim">T49 <T49Urgency value={e.box.urgency} simulated={e.box.urgency_simulated} /></div>
+                  </td>
+                  <td className="px-2.5 py-2" title={top?.summary}>
+                    <div className="flex flex-col items-start gap-1">
+                      {top ? <SeverityBadge s={top.severity} size="sm" label={securityCase && view === 'ops' && top.severity === 'critical' ? 'Inspection requested' : undefined} /> : !e.box.holds_at_pod_terminal.length && <span className="text-[11.5px] text-dim">—</span>}
+                      {e.box.holds_at_pod_terminal.length > 0 && <HoldChips holds={e.box.holds_at_pod_terminal} />}
+                    </div>
+                  </td>
+                  <td className="px-2.5 py-2"><Countdown hours={e.hoursToDeadline} note={e.deadline?.effectiveNote} /></td>
+                  <td className="px-2.5 py-2"><ReeferCell r={e.reefer} /></td>
+                  <td className={cx('px-2.5 py-2 font-mono text-[12px] whitespace-nowrap', a ? 'text-ink' : 'text-muted')} title={a ? 'Approved slot' : 'Proposed slot (not yet approved)'}>
+                    {asg?.text ?? '—'}
+                  </td>
+                  <td className="px-2.5 py-2" onClick={(ev) => ev.stopPropagation()}>
+                    <div className="flex items-center justify-between gap-2">
+                      <ActionChip k={a?.state === 'modified' ? a.key : e.rec.key} also={a?.state === 'modified' ? [] : e.rec.also} size="sm" />
+                      <DecisionCell e={e} a={a} />
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!showAll && !q && filter === 'all' && rows.length > 30 && (
+        <div className="border-t border-line px-4 py-2.5 text-center">
+          <Btn size="sm" variant="quiet" onClick={() => setShowAll(true)}>Show all {rows.length} boxes</Btn>
+        </div>
+      )}
+    </Panel>
+  )
+}
+
+const rank3 = (s: string) => (s === 'critical' ? 3 : s === 'major' ? 2 : 1)

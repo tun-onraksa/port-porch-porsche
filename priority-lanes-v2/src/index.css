@@ -1,0 +1,130 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'IBM Plex Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url('../node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* Control-room palette: dark, calm, high contrast. Status colours always ship with an icon
+   and a text label; they never carry meaning alone. */
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-bg: #070b13;
+  --color-panel: #0c1320;
+  --color-panel-2: #111a2b;
+  --color-panel-3: #17223a;
+  --color-line: #1d2940;
+  --color-line-2: #2b3a57;
+  --color-ink: #edf1f8;
+  --color-ink-2: #bcc7d9;
+  --color-muted: #8494ae;
+  --color-dim: #5d6c86;
+
+  /* status (fixed, never reused as a series colour) */
+  --color-good: #21b35b;
+  --color-warn: #fab219;
+  --color-serious: #ec835a;
+  --color-crit: #e5484d;
+  --color-info: #3987e5;
+
+  /* data provenance */
+  --color-sim: #9d8ff0;
+  --color-live: #1fbf86;
+
+  /* action ladder, gentle → blunt */
+  --color-a-release: #21b35b;
+  --color-a-watch: #38b2e8;
+  --color-a-flag: #fab219;
+  --color-a-slow: #94a3b8;
+  --color-a-reroute: #6d8ff7;
+  --color-a-inspect: #ec835a;
+  --color-a-hold: #e5484d;
+  --color-a-close: #c0265a;
+
+  /* chart series (validated reference palette, dark steps) */
+  --color-s-1: #3987e5;
+  --color-s-3: #199e70;
+  --color-s-other: #4a5568;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+
+body {
+  min-width: 320px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-info) 45%, transparent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hatched band for simulated content */
+.sim-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-sim) 22%, transparent) 0 8px,
+    color-mix(in oklab, var(--color-sim) 10%, transparent) 8px 16px
+  );
+}
+.drill-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-warn) 30%, transparent) 0 10px,
+    color-mix(in oklab, var(--color-warn) 14%, transparent) 10px 20px
+  );
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes flash-in {
+  from {
+    background: color-mix(in oklab, var(--color-good) 30%, transparent);
+  }
+}
+.flash-in {
+  animation: flash-in 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot,
+  .flash-in {
+    animation: none;
+  }
+}
