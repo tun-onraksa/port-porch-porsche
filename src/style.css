@@ -210,7 +210,7 @@ kbd { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 5px
 .toast.notice { background: #1f2633; z-index: 6; top: auto; bottom: 150px; }
 @media (max-width: 1180px) { .toast.notice { bottom: auto; top: 120px; } }
 .toast.notice.blue { background: var(--blue); }
-.btnrow.sticky { position: sticky; bottom: -14px; background: var(--card); padding: 10px 0 12px; margin-bottom: -14px; border-top: 1px solid var(--line); }
+.btnrow.sticky { align-items: center; position: sticky; bottom: -14px; background: var(--card); padding: 10px 0 12px; margin-bottom: -14px; border-top: 1px solid var(--line); }
 .oplist li[data-sel^="log"] .d { white-space: normal; }
 
 .modal { position: fixed; inset: 0; background: rgba(20, 28, 48, .35); display: grid; place-items: center; z-index: 20; padding: 16px; }
@@ -277,6 +277,10 @@ kbd { display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 5px
 .linkbtn { display: block; margin: 10px auto 0; border: 0; background: none; color: var(--blue); font-weight: 800; font-size: 12.5px; text-decoration: underline; }
 @media (max-width: 1180px) { .decbar { top: 16px; left: 16px; width: calc(100% - 32px); flex-wrap: wrap; } .decbtns { width: 100%; justify-content: flex-end; } }
 /* four stories */
+.pressure { margin: 10px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--red-soft); color: var(--red); font-size: 12px; font-weight: 800; }
+details.srcbox { margin-top: 10px; }
+details.srcbox summary { cursor: pointer; font-weight: 800; font-size: 12.5px; color: var(--blue-deep); }
+.oplist .d { min-width: 52px; }
 .verbs { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12px; line-height: 1.35; }
 .verbs li { display: grid; grid-template-columns: 74px 1fr; gap: 8px; }
 .verbs b { color: var(--blue-deep); font-weight: 800; text-transform: uppercase; font-size: 10.5px; letter-spacing: .05em; padding-top: 1px; }

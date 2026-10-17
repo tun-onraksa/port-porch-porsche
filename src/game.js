@@ -89,7 +89,7 @@ const optionsFor = p => isStory(p) ? ['separate', 'hold-box', 'hold-gate'] : ['a
 const CHOICE_LABEL = { approve: 'Approved', reject: 'Rejected', separate: 'Separated', 'hold-box': 'Held the box', 'hold-gate': 'Held the gate' };
 const NUM_WORD = ['', 'One', 'Two', 'Three', 'Four'];
 const SRC_SHORT = { carrier: 'Manifest', scale: 'Scale', customs: 'Customs', reefer: 'Reefer' };
-const OPTION_SHORT = { separate: 'Separate it, plug it in', 'hold-box': 'Hold just this box', 'hold-gate': 'Hold the whole gate', release: "Release on the carrier's word" };
+const OPTION_SHORT = { separate: 'Separate it, plug it in', 'hold-box': 'Hold it in the stack (no reefer plug there)', 'hold-gate': 'Hold the whole gate', release: "Release on the carrier's word" };
 function rebuildDrill() { const d = runs[DRILL]; runs[DRILL] = buildRun(d.name, d.code, d.color, d.plan, d.sub); }
 // the autopilot is PortTable on its own: it takes its own suggestion at every decision point
 function autopilotRun() {
@@ -236,7 +236,10 @@ function notice(title, text, cls = '') {
 function nextDecisionJump() { const p = nextPending(); if (p) { frameF = p.s; snap = true; tick(true); } }
 function jumpToBox() {
   if (sel !== DRILL) selectRun(DRILL, false);
-  notice('Jumped to 5:20 PM', 'PortTable made the earlier storm calls (see the Decisions tab). The four-stories box is yours.', 'blue');
+  const done = decisionLog.findIndex(e => e.id.startsWith('story:') && STORIES[+e.id.split(':')[1]].conflicts >= 3);
+  if (done >= 0) { const at = decisionLog[done].s; revisit(done); frameF = at; snap = true; tick(true); checkDrill(); notice('Back to the four-stories box', 'Your earlier calls are kept. Choose again.', 'blue'); return; }
+  const target = runs[DRILL].points.find(p => isStory(p) && storyOf(p).conflicts >= 3);
+  notice(`Jumped to ${target ? clockOf(target.s) : 'the box'}`, 'PortTable makes the remaining earlier calls (see the Decisions tab). The four-stories box is yours.', 'blue');
   pending = null;
   for (let i = 0; i < 20; i++) {
     const p = nextPending(); if (!p) break;
@@ -842,7 +845,7 @@ function storyRead(t) {
 function boxChip(i, f, s, run) {
   const st = f.exc[i], e = run.exc[i], t = STORIES[i];
   const left = t.reefer && !e.plugged && e.at >= 0 ? e.at + t.spoil - s : null;
-  const m = { ship: ['gray', 'On the ship'], yard: ['amber', 'In the yard'], bay: ['blue', t.reefer ? 'Exception bay · plugged in' : 'Exception bay · exam'], lane: ['red', 'Blocking a gate lane'], held: ['amber', 'Held for customs'], released: ['green', 'Released'], road: ['green', 'On a truck'], delivered: ['green', 'Delivered'], spoiled: ['red', 'Spoiled'] }[st] || ['gray', st];
+  const m = { ship: ['gray', 'On the ship'], yard: ['amber', 'In the yard'], bay: ['blue', t.reefer ? 'Bay · plugged in' : 'Bay · exam'], lane: ['red', 'Blocking a gate lane'], held: ['amber', 'Held for customs'], released: ['green', 'Released'], road: ['green', 'On a truck'], delivered: ['green', 'Delivered'], spoiled: ['red', 'Spoiled'] }[st] || ['gray', st];
   return chip(m[0], m[1]) + (left !== null && left > 0 && ['yard', 'held', 'lane'].includes(st) ? chip('red', `spoils in ${Math.floor(left / 6)}h ${left % 6 * 10}m`) : '');
 }
 function orderRow(k, f, s) {
@@ -882,18 +885,19 @@ function renderInspector(s) {
       return `<tr class="${rec ? 'rec' : ''}"><td><b>${OPTION_SHORT[c]}</b>${rec ? '<small class="up">PortTable suggests this</small>' : ''}<button class="btn ${rec ? 'primary' : ''}" data-choose="${c}">Choose</button></td><td>${onSetOf(X).length}/${LIFELINE.length}${X.medLate ? `<small class="down">${X.medLate} med. late</small>` : ''}</td><td class="${fate[0] === 'bad' ? 'down' : 'up'}">${X.exc[i].state === 'spoiled' ? 'Spoils' : 'Saved'}</td><td>${hold ? `<span class="down">shut ${hold} h</span>` : 'open'}</td><td>${money(X.charges)}</td></tr>`;
     };
     h = head('box', 'Decision · ' + clockOf(ev.p.s), `${NUM_WORD[t.conflicts]} stories, one box`, `${t.code} · off ${SHIPS[t.ship].name} · terminal planner`, false) +
-      `<ul class="verbs">
+      `<p class="pressure">${fmt(f.yard + f.berthLeft.reduce((x, y) => x + y, 0) + f.anchor.reduce((x, id) => x + SHIPS[id].boxes, 0))} more boxes need this gate today · ${lanesOpen(run, f)} of 5 lanes open · storm until midnight</p>
+      <table class="cmp"><thead><tr><th>Option</th><th>Lifeline</th><th>Reefer</th><th>Gate</th><th>Detention</th></tr></thead><tbody>${ev.opts.map(row).join('')}
+      <tr class="off"><td><b>${OPTION_SHORT.release}</b>${chip('gray', 'Blocked')}</td><td colspan="4">Customs has a hold on it. Only customs can lift it.</td></tr></tbody></table>
+      <ul class="verbs">
         <li><b>Trust</b>the scale and the reefer plug (measured today), and the customs hold. Not the carrier's "empty".</li>
         <li><b>Can't wait</b>this box. Unplugged, the reefer spoils in ${t.spoil * STEP_MIN / 60} h.</li>
         <li><b>Reroute</b>it to the exception bay and plug it in, so it never reaches a gate lane.</li>
         <li><b>Inspect</b>it: ask customs for its perishables exam slot.</li>
-        <li><b>Slow</b>nothing else. The other boxes keep the open lanes.</li>
+        <li><b>Slow</b>general-cargo pickups: they go behind lifeline boxes. Nothing waits behind this box.</li>
         <li><b>Release</b>only when customs clears it. Never on the carrier's word.</li>
       </ul>
-      <table class="cmp"><thead><tr><th>Option</th><th>Lifeline</th><th>Reefer</th><th>Gate</th><th>Detention</th></tr></thead><tbody>${ev.opts.map(row).join('')}
-      <tr class="off"><td><b>${OPTION_SHORT.release}</b>${chip('gray', 'Blocked')}</td><td colspan="4">Customs has a hold on it. Only customs can lift it.</td></tr></tbody></table>
-      <p class="hint">Forecasts assume the storm forecast holds. Detention: trucks waiting past 2 free hours, $75 an hour each.</p>
-      <div class="sec">What each source says</div>${storyTable(t)}`;
+      <p class="hint">Forecasts assume the storm forecast holds. Detention: boxes waiting past 2 free hours, about $75 an hour each.</p>
+      <details class="srcbox"><summary>What each source says</summary>${storyTable(t)}</details>`;
   } else if (focus.type === 'box') {
     const i = focus.i, t = STORIES[i], st = f.exc[i], e = run.exc[i];
     h = head('box', t.conflicts >= 2 ? `Flagged · ${t.conflicts} stories disagree` : 'Single flag · routine', t.code, `Off ${SHIPS[t.ship].name} · to ${t.dest}`) +
@@ -911,8 +915,7 @@ function renderInspector(s) {
       `<p class="ctx">${decisionContext(ev.p)}</p>
       <div class="sugg"><b>PortTable suggests: ${ev.rec === 'approve' ? 'Approve' : 'Reject'}</b><span>${recReason(ev)}</span></div>
       ${opt('approve')}${opt('reject')}
-      <button class="linkbtn" data-act="delegate">Let PortTable decide the rest of this storm</button>
-      <div class="btnrow sticky"><button class="btn ${ev.rec === 'reject' ? 'primary' : ''}" data-act="reject">Reject</button><button class="btn ${ev.rec === 'approve' ? 'primary' : ''}" data-act="approve">Approve</button></div>`;
+      <div class="btnrow sticky"><button class="linkbtn" data-act="delegate" style="margin:0;flex:none">Let PortTable decide the rest</button><button class="btn ${ev.rec === 'reject' ? 'primary' : ''}" data-act="reject">Reject</button><button class="btn ${ev.rec === 'approve' ? 'primary' : ''}" data-act="approve">Approve</button></div>`;
   } else if (focus.type === 'log') {
     const e = decisionLog[focus.i];
     if (!e) { focus = { type: 'port' }; return renderInspector(s); }
@@ -994,7 +997,7 @@ function renderKPIs(s) {
   $('kpis').innerHTML =
     kpi(ICON.dest, 'Lifeline orders on time', `${onNow}/${LIFELINE.length}`, sel !== TODAY && d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs today</span>` : '', (late ? `<span class="down">${late} late so far</span>` : 'none late so far') + ` · ${sel === DRILL ? 'forecast' : 'result'} ${runs[sel].onL}/${LIFELINE.length}`) +
     kpi(ICON.ship, 'Lifeline boxes still in port', LIFELINE.filter(k => ['anchor', 'berth', 'yard'].includes(f.orderWhere[k])).reduce((a, k) => a + ORDERS[k].n, 0), '', `${f.anchor.length} ships waiting · ${inStorm(s) ? 2 : 4} of 4 berths open`) +
-    kpi(ICON.gate, 'Truck detention', money(f.charges), '', `${lanesOpen(run, f)} of 5 gate lanes moving · yard wait ~${f.waitMin} min`);
+    kpi(ICON.gate, 'Detention charges', money(f.charges), '', `${lanesOpen(run, f)} of 5 gate lanes moving · yard wait ~${f.waitMin} min`);
 }
 function renderTimeline(s) {
   const run = view(), f = run.frames[s], k = tlOrder, o = ORDERS[k], st = run.stages[k], status = orderStatus(k, f, s);
@@ -1046,7 +1049,7 @@ function renderOps(s) {
       || '<li style="cursor:default"><span class="muted" style="grid-column:1/-1">No flagged boxes have come off a ship yet. The first arrives around 1 PM.</span></li>';
   }
   if (tab === 'log') {
-    rows = decisionLog.map((e, i) => `<li data-sel="log:${i}" class="${focus.type === 'log' && focus.i === i ? 'sel' : ''}"><span class="k">${clockOf(e.s)}<small>${e.how === 'human' ? 'you' : e.how === 'auto' ? 'auto' : 'delegated'}</small></span><span class="d">${e.title}</span>${chip(e.choice === 'approve' ? 'green' : 'gray', e.choice === 'approve' ? 'Approved' : 'Rejected')}<span class="m">${e.how === 'human' ? (e.choice === e.rec ? 'followed' : 'overrode') : ''}</span><span class="c">›</span></li>`).join('')
+    rows = decisionLog.map((e, i) => [e, i]).reverse().map(([e, i]) => `<li data-sel="log:${i}" class="${focus.type === 'log' && focus.i === i ? 'sel' : ''}"><span class="k">${clockOf(e.s)}<small>${e.how === 'human' ? 'you' : e.how === 'auto' ? 'auto' : 'delegated'}</small></span><span class="d">${e.title}</span>${chip(['approve', 'separate'].includes(e.choice) ? 'green' : 'gray', CHOICE_LABEL[e.choice] || e.choice)}<span class="m">${e.how === 'human' ? (e.choice === e.rec ? 'followed' : 'overrode') : ''}</span><span class="c">›</span></li>`).join('')
       || `<li style="cursor:default"><span class="muted" style="grid-column:1/-1">${sel === DRILL ? 'No decisions yet. The first one arrives with the storm forecast at 11:00.' : 'Decisions are made in the storm drill. Pick "Storm drill · you decide" in the scenario menu.'}</span></li>`;
   }
   $('oplist').innerHTML = rows;
@@ -1093,14 +1096,16 @@ function updatePlay() {
   $('playBtn').setAttribute('aria-label', playing ? 'Pause' : 'Play');
   $('playBtn').classList.toggle('primary', !playing);
 }
+// gate lane-hours lost to flagged boxes: a blocked lane, or every lane while the gate is held
+const laneHours = r => +(r.frames.reduce((a, f) => a + f.lanesBlocked + (f.gateHold ? 5 : 0), 0) * STEP_MIN / 60).toFixed(1);
 function showReport() {
   const played = decisionLog.some(e => e.how === 'human');
   const list = runs.map((r, i) => [r, i]).filter(([r, i]) => i <= AUTO || (i === DRILL && played));
-  $('repBody').innerHTML = list.map(([r, i]) => `<tr class="${i === sel ? 'cur' : ''}"><td>${r.name}</td><td>${r.onL}/${LIFELINE.length}</td><td class="${r.medLate ? 'bad' : ''}">${r.medLate}</td><td>${fmt(r.delivered)}</td><td class="${r.spoiled ? 'bad' : ''}">${r.spoiled}</td><td>${money(r.charges)}</td></tr>`).join('');
+  $('repBody').innerHTML = list.map(([r, i]) => `<tr class="${i === sel ? 'cur' : ''}"><td>${r.name}</td><td>${r.onL}/${LIFELINE.length}</td><td class="${r.medLate ? 'bad' : ''}">${r.medLate}</td><td>${fmt(r.delivered)}</td><td class="${r.spoiled ? 'bad' : ''}">${r.spoiled}</td><td class="${laneHours(r) ? 'bad' : ''}">${laneHours(r)} h</td><td>${money(r.charges)}</td></tr>`).join('');
   const t = runs[TODAY], l1 = runs[1], a = runs[AUTO];
   const n = x => `${x} more lifeline order${x === 1 ? '' : 's'}`;
-  $('repNote').textContent = `Same storm, same ships. On a normal day, booked slots cut the average yard wait before the storm from ${t.life1WaitMin} to ${l1.life1WaitMin} minutes (Life 1). When the storm forecast arrives, lifeline mode gets ${n(a.onL - l1.onL)} out on time and no medical order arrives late (Life 2).` +
-    (played ? ` In the drill you made ${(n => n + ' call' + (n === 1 ? '' : 's'))(decisionLog.filter(e => e.how === 'human').length)} and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}; your shift ended ${runs[DRILL].onL}/${LIFELINE.length}.` : '');
+  $('repNote').textContent = `Same storm, same ships. On a normal day, booked slots cut the average yard wait before the storm from ${t.life1WaitMin} to ${l1.life1WaitMin} minutes (Life 1). When the storm forecast arrives, lifeline mode gets ${n(a.onL - l1.onL)} out on time and no medical order arrives late (Life 2). One box, four stories: today ${STORIES.filter(x => x.conflicts >= 2).length} flagged boxes stop a gate lane for ${laneHours(t)} hours and the reefer spoils; PortTable reconciles the sources at discharge, moves them to the exception bay and loses no lane time.` +
+    (played ? ` In the drill you made ${(n => n + ' call' + (n === 1 ? '' : 's'))(decisionLog.filter(e => e.how === 'human').length)} and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}${(e => e ? `; for the four-stories box you chose "${OPTION_SHORT[e.choice] || e.choice}"` : '')(decisionLog.find(e => e.id === 'story:0'))}; your shift ended ${runs[DRILL].onL}/${LIFELINE.length}.` : '');
   $('reportModal').hidden = false; $('repClose').focus();
 }
 
@@ -1167,6 +1172,7 @@ $('repReplay').addEventListener('click', () => { rep.hidden = true; reportShownF
 $('repEdit').addEventListener('click', () => { rep.hidden = true; selectRun(DRILL, false); });
 [how, rep].forEach(m => m.addEventListener('click', e => { if (e.target === m) m.hidden = true; }));
 document.addEventListener('keydown', e => {
+  if (['t', 'T', 's', 'S', 'b', 'B'].includes(e.key) && document.activeElement && document.activeElement.closest('#tabs, .run-btn, .menu')) document.activeElement.blur();
   if (!how.hidden || !rep.hidden) { if (e.key === 'Escape') { how.hidden = true; rep.hidden = true; } return; }
   if (e.target.closest('input, select, textarea') && e.key !== ' ') return;
   if (e.key === ' ' && !e.target.closest('button')) { e.preventDefault(); togglePlay(); }

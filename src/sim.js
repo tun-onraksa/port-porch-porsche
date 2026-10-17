@@ -127,7 +127,7 @@ const EXAM_FAST = 9, EXAM_NORMAL = 24, REWEIGH = 3, LANE_BLOCK = 6, FREE_TIME = 
 // what the terminal planner can do with a flagged box (release is shown but blocked while customs holds it)
 const STORY_OPTIONS = {
   separate: 'Separate it: exception bay, plug it in, request the customs perishables exam',
-  'hold-box': 'Hold this box in the yard until customs reaches it',
+  'hold-box': 'Hold it in the stack until customs reaches it (no reefer plug there)',
   'hold-gate': 'Hold the whole gate until it is sorted out',
   release: "Release it on the carrier's word",
 };
