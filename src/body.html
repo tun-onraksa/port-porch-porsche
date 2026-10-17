@@ -38,8 +38,9 @@
       <div class="decbar" id="decBar" hidden role="alert">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>
         <div class="grow"><b id="decTitle">Decision needed</b><span id="decText"></span><em id="decSug"></em></div>
-        <button class="ib" id="decOpen">Review</button>
+        <div class="decbtns"><button class="ib" id="decOpen">Details</button><button class="ib" id="decReject">Reject</button><button class="ib primary" id="decApprove">Approve</button></div>
       </div>
+      <div class="toast notice" id="notice" hidden role="status"><div><b id="noticeT"></b><span id="noticeX"></span></div></div>
       <div class="toast" id="toast" hidden><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M7 16a4 4 0 0 1-.8-7.9A6 6 0 0 1 18 9a3.5 3.5 0 0 1 0 7"/><path d="M9 18l-1 3M13 18l-1 3M17 18l-1 3"/></svg><div><b>2 PM · Storm hits. Berths B3 and B4 close.</b><span id="toastSub">Still first come, first served.</span></div></div>
     </div>
 
@@ -51,6 +52,7 @@
         <button role="tab" data-tab="berths" aria-selected="true">Berths</button>
         <button role="tab" data-tab="orders" aria-selected="false">Orders</button>
         <button role="tab" data-tab="ships" aria-selected="false">Ships</button>
+        <button role="tab" data-tab="exc" aria-selected="false">Exceptions</button>
         <button role="tab" data-tab="log" aria-selected="false">Decisions</button>
       </div>
       <ul class="oplist" id="oplist"></ul>
@@ -66,6 +68,7 @@
       <li><b>Life 1 (normal day):</b> PortTable books berth windows and truck pickup slots for every terminal. We assume booked slots let the gate move 12 trucks every 10 minutes instead of 10 walk-up trucks. That assumption is the only difference between Today and "Life 1 only".</li>
       <li><b>Life 2 (storm, 2 PM to midnight):</b> wind closes B3 and B4. When the forecast arrives at 11 AM, PortTable switches from first come, first served to lifeline priorities agreed in advance with county emergency managers: medical, then energy, then food and water, then industry. Lifeline ships stay off the berths that will close, a lifeline ship can swap into a sheltered berth ahead of a ship with only low-tier cargo, and the yard sends lifeline cargo to the gate first. Before 11 AM the autopilot and "Life 1 only" run identically.</li>
       <li><b>Storm drill (you decide):</b> PortTable stops and asks before each move that changes whether a lifeline order arrives on time: declaring lifeline mode, swapping a ship into a sheltered berth, digging buried boxes out. It runs the rest of the shift both ways and suggests the option that gets more (and more critical) lifeline cargo out on time. Moves that change nothing for lifeline orders it handles itself and logs. Every call lands in the Decisions tab, where you can revisit it.</li>
+      <li><b>One box, four stories:</b> PortTable compares what each source says about every box as it comes off the ship: the carrier's manifest, the terminal scale, customs and the reefer plug. When two or more disagree or raise an issue, it flags the box and moves it to the exception bay before it can stop a gate lane. A box with a single routine flag stays in the normal flow. Today the conflict only surfaces at the gate, and that lane stops for about an hour. In the drill, a box with three or more conflicting stories comes to you: separate it, hold just that box, or hold the whole gate. PortTable shows which source to trust and what each option costs in lifeline orders, spoilage and waiting charges.</li>
       <li><b>Dig</b> pulls priority containers out from under the stack. Each one costs two crane moves, so digging slows everything else.</li>
       <li><b>Forecast times</b> in the order timeline (in italics) come from the simulation running ahead, the way a digital twin projects the rest of the shift.</li>
       <li>"Cargo value" counts only delivered boxes. One box stands for a batch of containers; values are illustrative. Suggestions weigh on-time lifeline orders first (medical highest), then cargo moved.</li>
@@ -79,7 +82,7 @@
     <div class="mhead"><h2 id="repTitle">Shift report</h2><button class="btn" id="repClose" style="flex:none;padding:0 14px">Close</button></div>
     <table><thead><tr><th>Plan</th><th>Lifeline on time</th><th>Medical late</th><th>Boxes delivered</th><th>Cargo value</th></tr></thead><tbody id="repBody"></tbody></table>
     <p id="repNote"></p>
-    <div class="btnrow"><button class="btn" id="repEdit">Run the storm drill</button><button class="btn primary" id="repReplay">Replay the storm</button></div>
+    <div class="btnrow"><button class="btn" id="repEdit">Run the storm drill</button><button class="btn" id="repRestart">Restart the drill</button><button class="btn primary" id="repReplay">Replay the storm</button></div>
   </div>
 </div>
 

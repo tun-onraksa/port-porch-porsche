@@ -78,9 +78,16 @@ let focus = { type: 'port' }, tlOrder = 2, tab = 'berths';
 let snap = true, reportShownFor = new Set();
 
 // ===================== storm drill: the person decides, PortTable suggests =====================
+// the run on screen: while a drill decision waits, show the shift as it stands before the move (the "reject" branch)
+const view = () => sel === DRILL && pending ? pending.before : runs[sel];
 const TIER_W = { medical: 4, energy: 3, food: 2, industry: 1 };
 const onSetOf = r => LIFELINE.filter(k => r.stages[k][4] >= 0 && r.stages[k][4] <= ORDERS[k].dueS);
-const utilOf = r => onSetOf(r).reduce((a, k) => a + TIER_W[ORDERS[k].tier] * 1000, 0) + r.score / 1e4;
+const utilOf = r => onSetOf(r).reduce((a, k) => a + TIER_W[ORDERS[k].tier] * 1000, 0) + (r.score - r.charges) / 1e4;
+const isStory = p => p.id.startsWith('story:');
+const storyOf = p => STORIES[+p.id.split(':')[1]];
+const optionsFor = p => isStory(p) ? ['separate', 'hold-box', 'hold-gate'] : ['approve', 'reject'];
+const CHOICE_LABEL = { approve: 'Approved', reject: 'Rejected', separate: 'Separated', 'hold-box': 'Held the box', 'hold-gate': 'Held the gate' };
+const NUM_WORD = ['', 'One', 'Two', 'Three', 'Four'];
 function rebuildDrill() { const d = runs[DRILL]; runs[DRILL] = buildRun(d.name, d.code, d.color, d.plan, d.sub); }
 // the autopilot is PortTable on its own: it takes its own suggestion at every decision point
 function autopilotRun() {
@@ -101,17 +108,23 @@ function evaluate(p) {
   const plan = runs[DRILL].plan, key = JSON.stringify(plan.decisions) + '|' + p.id;
   if (evalCache.has(key)) return evalCache.get(key);
   const mk = c => buildRun('', '', '', { ...plan, decisions: { ...plan.decisions, [p.id]: c } }, '');
-  const A = mk('approve'), B = mk('reject');
-  const res = { p, A, B, material: onSetOf(A).join() !== onSetOf(B).join(), rec: utilOf(A) >= utilOf(B) ? 'approve' : 'reject' };
+  const opts = optionsFor(p), out = {};
+  opts.forEach(c => out[c] = mk(c));
+  const rec = opts.reduce((best, c) => utilOf(out[c]) > utilOf(out[best]) ? c : best, opts[0]);
+  // a box with three or more conflicting stories always goes to the planner; two-story boxes are separated automatically
+  const material = isStory(p) ? storyOf(p).conflicts >= 3 : onSetOf(out.approve).join() !== onSetOf(out.reject).join();
+  const res = { p, runs: out, opts, rec, material, A: out.approve, B: out.reject, before: isStory(p) ? out['hold-box'] : out.reject };
   evalCache.set(key, res); return res;
 }
 function decisionTitle(p) {
+  if (isStory(p)) { const t = storyOf(p); return `${NUM_WORD[t.conflicts]} stories on ${t.code}. What do you do with it?`; }
   if (p.id === 'mode') return 'Switch to lifeline mode for the storm?';
   const [kind, v] = p.id.split(':');
   if (kind === 'swap') return `Swap ${SHIPS[+v].name} into berth B${p.info.berth + 1}?`;
-  return `Dig out the ${ORDERS[+v].what.toLowerCase()}?`;
+  return `Dig out the ${ORDERS[+v].what}?`;
 }
 function shortTitle(p) {
+  if (isStory(p)) { const t = storyOf(p); return `${t.code} (${t.conflicts} stories disagree)`; }
   if (p.id === 'mode') return 'Lifeline mode';
   const [kind, v] = p.id.split(':');
   return kind === 'swap' ? `Swap ${SHIPS[+v].name} into B${p.info.berth + 1}` : `Dig out ${ORDERS[+v].what}`;
@@ -121,12 +134,12 @@ function decisionContext(p) {
   const [kind, v] = p.id.split(':');
   if (kind === 'swap') {
     const sh = SHIPS[+v], out = SHIPS[p.info.out];
-    const aboard = LIFELINE.filter(k => ORDERS[k].ship === sh.id).map(k => ORDERS[k].what.toLowerCase());
-    const outOrders = LIFELINE.filter(k => ORDERS[k].ship === out.id).map(k => ORDERS[k].what.toLowerCase());
+    const aboard = LIFELINE.filter(k => ORDERS[k].ship === sh.id).map(k => ORDERS[k].what);
+    const outOrders = LIFELINE.filter(k => ORDERS[k].ship === out.id).map(k => ORDERS[k].what);
     return `${sh.name} is waiting at anchor with ${aboard.join(' and ')}. Sheltered berth B${p.info.berth + 1} is busy with ${out.name}, which carries ${outOrders.length ? 'only lower-tier cargo (' + outOrders.join(', ') + ')' : 'general cargo'}. Approving sends ${out.name} back to anchor until a berth frees up.`;
   }
   const o = ORDERS[+v];
-  return `The ${o.n} boxes of ${o.what.toLowerCase()} are under ${p.info.depth} other boxes on ${SHIPS[o.ship].name} at berth B${p.info.berth + 1}. Digging them out costs two crane moves per box and slows everything else on that berth.`;
+  return `The ${o.n} boxes of ${o.what} are under ${p.info.depth} other boxes on ${SHIPS[o.ship].name} at berth B${p.info.berth + 1}. Digging them out costs two crane moves per box and slows everything else on that berth.`;
 }
 function outcomeLines(X, Y) {
   const sx = onSetOf(X), sy = onSetOf(Y), lines = [];
@@ -139,18 +152,42 @@ function outcomeLines(X, Y) {
   });
   return lines.length > 4 ? [...lines.slice(0, 3), ['', `and ${lines.length - 3} more`]] : lines;
 }
+function boxFate(r, i) {
+  const e = r.exc[i];
+  if (e.state === 'spoiled') return ['bad', 'Reefer spoils before it is plugged in'];
+  const d = r.frames.findIndex(f => f.exc[i] === 'delivered');
+  return ['ok', d >= 0 ? `Box delivered ${clockOf(d)}` : 'Box still in port at the end of the shift'];
+}
+function storyLines(ev, c) {
+  const i = +ev.p.id.split(':')[1], X = ev.runs[c], Y = ev.runs[ev.rec === c ? ev.opts.find(o => o !== c) : ev.rec];
+  const lines = [boxFate(X, i)];
+  const hold = X.frames.filter(f => f.gateHold).length * STEP_MIN;
+  lines.push(hold ? ['bad', `Every gate lane closed for ${hold / 60} h`] : ['ok', 'Gate lanes keep moving']);
+  outcomeLines(X, Y).filter(l => l[0] !== 'warn').forEach(l => lines.push(l));
+  return lines;
+}
 function recReason(ev) {
+  if (isStory(ev.p)) {
+    const t = storyOf(ev.p);
+    return ev.rec === 'separate' ? `It keeps every gate lane moving${t.reefer ? ' and gets the reefer plugged in before it spoils' : ''}, without touching the customs hold.` : `It does better on lifeline orders and charges than separating.`;
+  }
   const X = ev.rec === 'approve' ? ev.A : ev.B, Y = ev.rec === 'approve' ? ev.B : ev.A;
   const gains = onSetOf(X).filter(k => !onSetOf(Y).includes(k)).map(k => ORDERS[k].what);
   return gains.length ? `It gets ${gains.length === 1 ? gains[0] : gains.slice(0, -1).join(', ') + ' and ' + gains[gains.length - 1]} out on time.` : 'Both options deliver the same lifeline orders on time; this one moves more cargo overall.';
 }
 function decideNow(choice, how) {
   const ev = pending; if (!ev) return;
-  const X = choice === 'approve' ? ev.A : ev.B;
+  const X = ev.runs[choice], before = runs[DRILL].onL;
+  const lines = isStory(ev.p) ? storyLines(ev, choice) : outcomeLines(X, ev.runs[ev.opts.find(o => o !== choice)]);
   runs[DRILL].plan.decisions[ev.p.id] = choice;
-  decisionLog.push({ id: ev.p.id, s: ev.p.s, choice, how, rec: ev.rec, title: shortTitle(ev.p), onL: onSetOf(X).length, lines: outcomeLines(X, choice === 'approve' ? ev.B : ev.A) });
+  decisionLog.push({ id: ev.p.id, s: ev.p.s, choice, how, rec: ev.rec, title: shortTitle(ev.p), onL: onSetOf(X).length, lines });
   pending = null; rebuildDrill(); snap = true;
   if (focus.type === 'decision') focus = { type: 'port' };
+  if (how === 'human') {
+    notice(`${CHOICE_LABEL[choice]}: ${shortTitle(ev.p)}`, `Forecast ${before}/${LIFELINE.length} → ${runs[DRILL].onL}/${LIFELINE.length} lifeline orders on time${runs[DRILL].medLate ? ` · ${runs[DRILL].medLate} medical late` : ''}`, choice === 'approve' ? 'blue' : '');
+    flyTo(HOME.pos.clone(), HOME.tgt.clone());
+  }
+  if (isStory(ev.p) && how !== 'human') notice(`Separated ${storyOf(ev.p).code}`, `${storyOf(ev.p).conflicts} sources disagree, so PortTable moved it to the exception bay. No gate lane stopped.`, 'blue');
   $('decBar').hidden = true;
   resumeAfter = resumeAfter && !pending;
   if (resumeAfter) { playing = true; updatePlay(); }
@@ -166,15 +203,32 @@ function checkDrill() {
   if (!ev.material || delegated) { decideNow(ev.rec, ev.material ? 'delegated' : 'auto'); return; }
   playing = false; updatePlay(); tick(true);
   focus = { type: 'decision' }; renderInspector(curStep); showDecBar();
-  const pos = ev.p.id === 'mode' ? null : ev.p.id.startsWith('swap') ? shipPos(+ev.p.id.split(':')[1]) : new THREE.Vector3(-28, 0, wz(BERTH_Y[ev.p.info.berth]));
+  const pos = ev.p.id === 'mode' ? null : isStory(ev.p) ? BAY.clone() : ev.p.id.startsWith('swap') ? shipPos(+ev.p.id.split(':')[1]) : new THREE.Vector3(-28, 0, wz(BERTH_Y[ev.p.info.berth]));
   if (pos) flyFocus(pos, 48); else flyTo(HOME.pos.clone(), HOME.tgt.clone());
 }
 function showDecBar() {
   const ev = pending;
   $('decTitle').textContent = `Decision needed · ${clockOf(ev.p.s)}`;
   $('decText').textContent = decisionTitle(ev.p);
-  $('decSug').textContent = `PortTable suggests: ${ev.rec === 'approve' ? 'Approve' : 'Reject'}`;
+  const story = isStory(ev.p);
+  $('decSug').textContent = story ? `PortTable suggests separating it. ${recReason(ev)}` : `PortTable suggests ${ev.rec === 'approve' ? 'approving' : 'rejecting'}. ${recReason(ev)}`;
+  $('decApprove').textContent = story ? 'Separate it' : 'Approve';
+  $('decApprove').className = 'ib' + (ev.rec === 'approve' || ev.rec === 'separate' ? ' primary' : '');
+  $('decReject').className = 'ib' + (ev.rec === 'reject' ? ' primary' : '');
+  $('decReject').hidden = story;
   $('decBar').hidden = false;
+}
+let noticeTimer = 0;
+function notice(title, text, cls = '') {
+  $('noticeT').textContent = title; $('noticeX').textContent = text;
+  $('notice').className = 'toast notice ' + cls; $('notice').hidden = false;
+  clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { $('notice').hidden = true; }, 4500);
+}
+function nextDecisionJump() { const p = nextPending(); if (p) { frameF = p.s; snap = true; tick(true); } }
+function restartDrill() {
+  runs[DRILL].plan.decisions = {}; decisionLog = []; delegated = false; pending = null; resumeAfter = false;
+  rebuildDrill(); frameF = MODE_S - 3; snap = true; playing = false; updatePlay(); reportShownFor.clear();
+  focus = { type: 'port' }; renderSite(); tick(true);
 }
 function revisit(i) {
   const e = decisionLog[i];
@@ -230,7 +284,7 @@ scene.fog = new THREE.Fog(0xeef3fb, 230, 420);
 
 // sea
 const seaGeo = new THREE.PlaneGeometry(160, 240, 48, 72); seaGeo.rotateX(-Math.PI / 2);
-const seaMat = M(0x6fb0ec, { roughness: .35, flatShading: true });
+const seaMat = M(0x4f9be6, { roughness: .35, flatShading: true });
 const sea = new THREE.Mesh(seaGeo, seaMat); sea.position.set(-107.5, -.7, 0); sea.receiveShadow = true; scene.add(sea);
 const seaBase = Float32Array.from(seaGeo.attributes.position.array);
 // land, apron, quay edge
@@ -284,6 +338,27 @@ box(7.6, .3, 17.6, M(0x2457f5), 0, 4.05, 0, gateGroup);
 for (const z of [-7.8, -2.6, 2.6, 7.8]) for (const x of [-3.1, 3.1]) box(.4, 4, .4, M(0xc7cfdd), x, 2, z, gateGroup);
 for (const z of [-5.2, 0, 5.2]) { box(1.4, 1.9, 1.4, M(0xffffff), 0, .95, z, gateGroup); box(1.42, .3, 1.42, M(0x2457f5), 0, 1.95, z, gateGroup); }
 gateGroup.traverse(o => { if (o.isMesh) o.userData.pick = { type: 'gate' }; });
+// gate lane lights: green moving, red blocked or flooded
+const LANE_Z = [-6.8, -3.4, 0, 3.4, 6.8];
+const laneLights = LANE_Z.map(z => { const m = new THREE.Mesh(new THREE.SphereGeometry(.45, 12, 10), new THREE.MeshBasicMaterial({ color: 0x1f8f4e })); m.position.set(wx(GATE.x) - 3.9, 4.6, z); scene.add(m); return m; });
+// exception bay: flagged boxes wait here, plugged in, without touching a gate lane
+const BAY = new THREE.Vector3(wx(505), 0, wz(500));
+(function () {
+  const g = new THREE.Group(); g.position.copy(BAY); scene.add(g);
+  box(9, .18, 8, M(0xfff1d3), 0, .09, 0, g, false);
+  for (const [w, d, x, z] of [[9, .35, 0, -4], [9, .35, 0, 4], [.35, 8, -4.5, 0], [.35, 8, 4.5, 0]]) box(w, .2, d, M(0xf0a020), x, .2, z, g, false);
+  box(9, .25, 3.2, M(0xffffff), 0, 3.4, -2.4, g); box(9.2, .2, 3.4, M(0xf0a020), 0, 3.2, -2.4, g, false);
+  for (const x of [-4.2, 4.2]) box(.3, 3.3, .3, M(0xc7cfdd), x, 1.65, -3.8, g);
+  for (const x of [-2.6, 0, 2.6]) { box(.5, 1.6, .5, M(0x2457f5), x, .8, 3.3, g); }
+  g.traverse(o => { if (o.isMesh) o.userData.pick = { type: 'bay' }; });
+})();
+const excObjs = STORIES.map((t, i) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.15, 1.25), M(t.reefer ? 0xf4f6fb : 0xd9b48a));
+  m.castShadow = true; m.visible = false; m.userData.pick = { type: 'box', i }; scene.add(m);
+  if (t.reefer) { const u = new THREE.Mesh(new THREE.BoxGeometry(.3, 1.0, 1.1), M(0x2457f5)); u.position.x = -1.35; m.add(u); }
+  return m;
+});
+const plugCables = STORIES.map(() => { const c = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, 1.6), M(0x2457f5, { emissive: 0x2457f5, emissiveIntensity: .8 })); c.visible = false; scene.add(c); return c; });
 // destinations
 const BLUE = M(0x2457f5), WHITE = M(0xffffff), WIN = M(0x9fb7ee);
 const destGroups = DEST_POS.map((d, i) => {
@@ -410,9 +485,11 @@ const lamps = [...BERTH_Y.map(y => [-22, 12, wz(y)]), [wx(GATE.x), 10, wz(GATE.y
 // ----- HTML labels pinned to the scene -----
 const labelLayer = $('labels');
 function makeTag() { const el = document.createElement('div'); el.className = 'tag'; labelLayer.appendChild(el); return { el, p: new THREE.Vector3(), html: '' }; }
+let excTagsOn = [];
 const tags = {
   anchor: makeTag(), berths: BERTH_Y.map(() => makeTag()), dests: DEST_POS.map(() => makeTag()), focus: makeTag(),
 };
+const excTags = STORIES.map(() => makeTag());
 tags.anchor.p.set(-45, 3, -28);
 BERTH_Y.forEach((y, b) => tags.berths[b].p.set(-31, 5.2, wz(y) + 6.6));
 DEST_POS.forEach((d, i) => tags.dests[i].p.set(wx(d.x), 8.6, wz(d.y)));
@@ -452,12 +529,12 @@ function orderPos(k, f, s) {
   const w = f.orderWhere[k], o = ORDERS[k];
   if (w === 'anchor' || w === 'berth') return shipPos(o.ship);
   if (w === 'yard') return new THREE.Vector3(wx(YARD.x + YARD.w - 20), 1, wz(GATE.y));
-  if (w === 'road') { const t = runs[sel].orderTruck[k]; if (t && frameF >= t.s0 && frameF < t.s1) { const q = pathAt(ROADS[t.d], (frameF - t.s0) / (t.s1 - t.s0) * ROAD_LEN[t.d]); return new THREE.Vector3(wx(q.x), 1, wz(q.y)); } }
+  if (w === 'road') { const t = view().orderTruck[k]; if (t && frameF >= t.s0 && frameF < t.s1) { const q = pathAt(ROADS[t.d], (frameF - t.s0) / (t.s1 - t.s0) * ROAD_LEN[t.d]); return new THREE.Vector3(wx(q.x), 1, wz(q.y)); } }
   if (w === 'done') { const d = DEST_POS[DIDX[o.dest]]; return new THREE.Vector3(wx(d.x), 1, wz(d.y)); }
   return null;
 }
 function update3D(T, dt) {
-  const run = runs[sel], s = Math.min(STEPS - 1, Math.floor(frameF)), f = run.frames[s];
+  const run = view(), s = Math.min(STEPS - 1, Math.floor(frameF)), f = run.frames[s];
   const smart = run.plan.kind === 'porttable';
   const daylight = sunAt(frameF), storm = inStorm(s);
   const sky = (storm ? SKY.storm.clone().lerp(SKY.stormNight, 1 - daylight) : SKY.night.clone().lerp(SKY.day, daylight));
@@ -465,7 +542,7 @@ function update3D(T, dt) {
   sun.intensity = (storm ? .55 : 1.25) * (.3 + .7 * daylight);
   hemi.intensity = .5 + .2 * daylight;
   lamps.forEach(l => l.intensity = (1 - daylight) * .55);
-  seaMat.color.set(storm ? 0x5f8bb8 : 0x6fb0ec);
+  seaMat.color.set(storm ? 0x4a7fb3 : 0x4f9be6);
   const amp = storm ? .5 : .14, pos = seaGeo.attributes.position.array;
   for (let i = 0; i < pos.length; i += 3) { const x = seaBase[i], z = seaBase[i + 2]; pos[i + 1] = Math.sin(x * .35 + T * (storm ? 2.2 : 1)) * amp + Math.cos(z * .27 + T * .8) * amp * .6; }
   seaGeo.attributes.position.needsUpdate = true;
@@ -572,9 +649,28 @@ function update3D(T, dt) {
     const dp = DEST_POS[routeD];
     ring.visible = true; ring.position.set(wx(dp.x - 62), .15, wz(dp.y)); ring.scale.setScalar(1 + Math.sin(T * 3) * .08);
   }
+  // gate lanes and flagged boxes
+  const open = lanesOpen(run, f), stormDown = storm ? 2 : 0;
+  laneLights.forEach((m, j) => {
+    const blocked = j >= 5 - stormDown ? 'flood' : (f.gateHold ? 'hold' : j < f.lanesBlocked ? 'block' : 'ok');
+    m.material.color.set(blocked === 'ok' ? 0x1f8f4e : blocked === 'flood' ? 0x8a93a7 : 0xe5484d);
+  });
+  let bayN = 0, laneN = 0, heldN = 0;
+  excTagsOn = [];
+  STORIES.forEach((t, i) => {
+    const o = excObjs[i], st = f.exc[i], c = plugCables[i];
+    o.visible = ['bay', 'lane', 'held', 'yard', 'spoiled'].includes(st) && t.conflicts >= 2 && !(st === 'yard' && run.plan.kind !== 'today');
+    c.visible = false;
+    if (!o.visible) return;
+    if (st === 'bay') { o.position.set(BAY.x - 2.6 + (bayN % 3) * 2.6, .8, BAY.z + 1.2); bayN++; if (t.reefer && run.exc[i].plugged) { c.visible = true; c.position.set(o.position.x, .35, BAY.z + 2.4); } }
+    else if (st === 'lane') { o.position.set(wx(GATE.x) - 1.5, .8, LANE_Z[laneN]); laneN++; }
+    else { o.position.set(wx(YARD.x + YARD.w) - 1.8, .8 + heldN * 1.2, wz(GATE.y) + 6); heldN++; }
+    o.material.color.set(st === 'spoiled' ? 0x9aa3b5 : t.reefer ? 0xf4f6fb : 0xd9b48a);
+    excTagsOn.push([i, st]);
+  });
   // selection outline
   selBox.visible = false;
-  const selObj = focus.type === 'ship' ? (shipObjs[focus.id].g.visible ? shipObjs[focus.id].g : null) : focus.type === 'dest' ? destGroups[focus.i] : focus.type === 'gate' ? gateGroup : focus.type === 'berth' ? craneParts[focus.b].g : null;
+  const selObj = focus.type === 'box' ? (excObjs[focus.i].visible ? excObjs[focus.i] : null) : focus.type === 'ship' ? (shipObjs[focus.id].g.visible ? shipObjs[focus.id].g : null) : focus.type === 'dest' ? destGroups[focus.i] : focus.type === 'gate' ? gateGroup : focus.type === 'berth' ? craneParts[focus.b].g : null;
   if (selObj) { selBox.box.setFromObject(selObj); selBox.box.expandByScalar(.4); selBox.visible = true; }
   if (focus.type === 'truck') { const ts = truckSlots.find(t => t.ti === focus.ti); if (ts) { selBox.box.setFromCenterAndSize(new THREE.Vector3(ts.x, .8, ts.z), new THREE.Vector3(4.2, 2.2, 4.2)); selBox.visible = true; } }
   if (focus.type === 'yard') { selBox.box.setFromCenterAndSize(new THREE.Vector3(wx(YARD.x + YARD.w / 2), 2, wz(YARD.y + YARD.h / 2)), new THREE.Vector3(YARD.w * .1 + 1, 4, YARD.h * .1 + 1)); selBox.visible = true; }
@@ -582,6 +678,15 @@ function update3D(T, dt) {
   selVol.visible = selBox.visible;
   if (selVol.visible) { selBox.box.getCenter(selVol.position); selBox.box.getSize(selVol.scale); selVol.material.opacity = .08 + Math.sin(T * 3) * .03; }
   // labels
+  excTags.forEach(tg => tg.el.style.display = 'none');
+  excTagsOn.forEach(([i, st], j) => {
+    const tg = excTags[j], t = STORIES[i], o = excObjs[i];
+    tg.p.copy(o.position).setY(o.position.y + 1.6);
+    const left = t.reefer && !run.exc[i].plugged ? run.exc[i].at + t.spoil - s : null;
+    const sub = st === 'bay' ? (t.reefer ? 'exception bay · plugged in' : 'exception bay') : st === 'lane' ? 'blocking a gate lane' : st === 'spoiled' ? 'spoiled' : left !== null && left > 0 ? `unplugged · spoils in ${Math.floor(left / 6)}h ${left % 6 * 10}m` : 'held for customs';
+    setTag(tg, `${t.code.slice(0, 11)} · ${t.conflicts} stories<small>${sub}</small>`, st === 'bay' ? 'gold' : 'red');
+    tg.el.style.display = '';
+  });
   setTag(tags.anchor, `Anchorage<small>${f.anchor.length} waiting</small>`);
   BERTH_Y.forEach((y, b) => {
     const id = f.berth[b], closed = storm && STORM_BERTHS.includes(b), swapped = smart && s - f.swapAt[b] < 4;
@@ -610,6 +715,7 @@ function update3D(T, dt) {
   tags.focus.el.style.display = fp ? '' : 'none';
   if (fp) { tags.focus.p.copy(fp); setTag(tags.focus, fh, 'blue'); }
   [tags.anchor, ...tags.berths, ...tags.dests].forEach(place);
+  excTagsOn.forEach((x, j) => place(excTags[j]));
   if (fp) place(tags.focus);
   for (const p of pops) place(p);
   snap = false;
@@ -622,7 +728,7 @@ function pickAt(ev) {
   const r = renderer.domElement.getBoundingClientRect();
   mouse.set((ev.clientX - r.left) / r.width * 2 - 1, -(ev.clientY - r.top) / r.height * 2 + 1);
   ray.setFromCamera(mouse, camera);
-  const objs = [...shipObjs.filter(o => o.g.visible).map(o => o.g), ...destGroups, gateGroup, ...craneParts.map(c => c.g), yardInst, trailers, cabs, scene.children.find(o => o.userData.pick && o.userData.pick.type === 'yard')];
+  const objs = [...excObjs.filter(o => o.visible), ...shipObjs.filter(o => o.g.visible).map(o => o.g), ...destGroups, gateGroup, ...craneParts.map(c => c.g), yardInst, trailers, cabs, scene.children.find(o => o.userData.pick && o.userData.pick.type === 'yard')];
   for (const h of ray.intersectObjects(objs.filter(Boolean), true)) {
     if (h.object === trailers || h.object === cabs) { const ts = truckSlots[h.instanceId]; if (ts) return { type: 'truck', ti: ts.ti }; continue; }
     if (h.object.userData.pick) return h.object.userData.pick;
@@ -633,14 +739,15 @@ if (renderer) {
   renderer.domElement.addEventListener('pointerdown', e => { downAt = [e.clientX, e.clientY]; });
   renderer.domElement.addEventListener('pointerup', e => {
     if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
-    const p = pickAt(e);
+    let p = pickAt(e);
+    if (p && p.type === 'bay') { const i = STORIES.findIndex((t, j) => view().frames[curStep].exc[j] === 'bay'); p = i >= 0 ? { type: 'box', i } : null; tab = 'exc'; }
     select(p || { type: 'port' }, !!p);
   });
   let hoverAt = 0;
   renderer.domElement.addEventListener('pointermove', e => { if (e.buttons || performance.now() - hoverAt < 120) return; hoverAt = performance.now(); renderer.domElement.style.cursor = pickAt(e) ? 'pointer' : 'grab'; });
 }
 function entityPos(e) {
-  const f = runs[sel].frames[curStep];
+  const f = view().frames[curStep];
   if (e.type === 'ship') return shipPos(e.id) || new THREE.Vector3(-40, 0, 0);
   if (e.type === 'berth') return new THREE.Vector3(-28, 0, wz(BERTH_Y[e.b]));
   if (e.type === 'yard') return new THREE.Vector3(wx(YARD.x + YARD.w / 2), 0, 0);
@@ -648,19 +755,21 @@ function entityPos(e) {
   if (e.type === 'dest') return new THREE.Vector3(wx(DEST_POS[e.i].x), 0, wz(DEST_POS[e.i].y));
   if (e.type === 'truck') { const ts = truckSlots.find(t => t.ti === e.ti); return ts ? new THREE.Vector3(ts.x, 0, ts.z) : new THREE.Vector3(wx(GATE.x), 0, 0); }
   if (e.type === 'order') return orderPos(e.k, f, curStep) || new THREE.Vector3(-30, 0, 0);
+  if (e.type === 'box') return excObjs[e.i].visible ? excObjs[e.i].position.clone() : BAY.clone();
   return HOME.tgt.clone();
 }
 function select(e, fly) {
   focus = e;
   if (e.type === 'order') tlOrder = e.k;
   if (e.type === 'ship') { const k = LIFELINE.find(kk => ORDERS[kk].ship === e.id); if (k !== undefined) tlOrder = k; }
-  if (e.type === 'truck') { const tr = runs[sel].trucks[e.ti]; const k = tr && [...tr.orders][0]; if (k !== undefined) tlOrder = k; }
+  if (e.type === 'truck') { const tr = view().trucks[e.ti]; const k = tr && [...tr.orders][0]; if (k !== undefined) tlOrder = k; }
   if (fly && controls && e.type !== 'port' && e.type !== 'plan') flyFocus(entityPos(e), e.type === 'yard' ? 60 : 42);
   renderPanels(curStep);
 }
 
 // ===================== dashboard panels =====================
 const ICON = {
+  box: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg>',
   ship: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 14h18l-2.5 5H5.5z"/><rect x="6" y="9" width="4" height="4" rx=".5"/><rect x="11" y="9" width="4" height="4" rx=".5"/><rect x="8" y="5" width="4" height="3.4" rx=".5"/></svg>',
   crane: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 21V5M10 21V5M3 5h18M15 5v5"/><rect x="13" y="10" width="4" height="3" fill="currentColor"/></svg>',
   yard: '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="12" width="8" height="7" rx="1"/><rect x="13" y="12" width="8" height="7" rx="1"/><rect x="8" y="4" width="8" height="7" rx="1"/></svg>',
@@ -674,7 +783,7 @@ const STAGE_ICONS = ['<path d="M3 14h18l-2.5 5H5.5z"/>', '<path d="M6 21V5M10 21
 const STAGE_NAMES = ['Ship arrived', 'Berthed', 'Off the ship', 'Out the gate', 'Delivered'];
 const chip = (cls, t) => `<span class="chip ${cls}">${t}</span>`;
 function orderStatus(k, f, s) {
-  const o = ORDERS[k], d = f.orderDone[k], fin = runs[sel].stages[k][4];
+  const o = ORDERS[k], d = f.orderDone[k], fin = view().stages[k][4];
   if (d >= 0) return d <= o.dueS ? { cls: 'green', label: 'Delivered on time' } : { cls: 'red', label: 'Delivered late' };
   if (s > o.dueS) return { cls: 'red', label: 'Late' };
   if (s < SHIPS[o.ship].s0) return { cls: 'gray', label: 'Ship due ' + clockOf(SHIPS[o.ship].s0) };
@@ -691,6 +800,24 @@ function shipStatus(id, f, s) {
   return { cls: 'gray', label: 'Unloaded and gone' };
 }
 const field = (k, v) => `<dt>${k}</dt><dd>${v}</dd>`;
+function storyTable(t) {
+  return `<table class="stories"><thead><tr><th>Source</th><th>What it says</th><th></th></tr></thead><tbody>${SOURCES.map(k => `<tr class="${t.says[k][1] ? 'cf' : ''}"><td><b>${SOURCE_NAME[k]}</b><small>${SOURCE_TRUST[k]}</small></td><td>${t.says[k][0]}</td><td>${t.says[k][1] ? '<span class="flag" title="Conflicts or raises an issue">!</span>' : '<span class="okmark" title="Consistent">✓</span>'}</td></tr>`).join('')}</tbody></table>`;
+}
+function storyRead(t) {
+  const parts = [];
+  if (t.says.carrier[1] && t.says.scale[1]) parts.push(`Trust the terminal scale over the carrier: it weighed the box today, and ${t.says.scale[0]} contradicts "${t.says.carrier[0].toLowerCase()}".`);
+  else if (t.says.carrier[1]) parts.push('The carrier\'s description doesn\'t match what customs is checking; treat the manifest as unconfirmed.');
+  if (t.says.reefer[1]) parts.push('Trust the reefer plug too: it is a live reading, and a warming reefer means there is cargo inside.');
+  if (t.hold) parts.push('The customs hold is binding: the box can\'t be released, but it doesn\'t need a gate lane while it waits.');
+  if (t.reefer) parts.push(`This is the box that can't wait: unplugged, it spoils in about ${t.spoil * STEP_MIN / 60} hours.`);
+  return `<div class="sugg"><b>PortTable's read</b><span>${parts.join(' ')}</span></div>`;
+}
+function boxChip(i, f, s, run) {
+  const st = f.exc[i], e = run.exc[i], t = STORIES[i];
+  const left = t.reefer && !e.plugged && e.at >= 0 ? e.at + t.spoil - s : null;
+  const m = { ship: ['gray', 'On the ship'], yard: ['amber', 'In the yard'], bay: ['blue', t.reefer ? 'Exception bay · plugged in' : 'Exception bay · exam'], lane: ['red', 'Blocking a gate lane'], held: ['amber', 'Held for customs'], released: ['green', 'Released'], road: ['green', 'On a truck'], delivered: ['green', 'Delivered'], spoiled: ['red', 'Spoiled'] }[st] || ['gray', st];
+  return chip(m[0], m[1]) + (left !== null && left > 0 && ['yard', 'held', 'lane'].includes(st) ? chip('red', `spoils in ${Math.floor(left / 6)}h ${left % 6 * 10}m`) : '');
+}
 function orderRow(k, f, s) {
   const o = ORDERS[k], st = orderStatus(k, f, s);
   return `<li data-sel="order:${k}" style="cursor:pointer"><span class="sw" style="background:${TIER_COL[o.tier]}"></span><span class="grow">${o.what}<small>${ORD_ID(k)} · due ${o.due}</small></span>${chip(st.cls, st.label)}</li>`;
@@ -701,7 +828,7 @@ function head(icon, eyebrow, title, sub, closable = true) {
 }
 function renderInspector(s) {
   if (focus.type === 'decision' && (!pending || sel !== DRILL)) focus = { type: 'port' };
-  const run = runs[sel], f = run.frames[s], storm = inStorm(s), smart = run.plan.kind === 'porttable';
+  const run = view(), f = run.frames[s], storm = inStorm(s), smart = run.plan.kind === 'porttable';
   let h = '';
   if (focus.type === 'port') {
     const busy = f.berth.filter((id, b) => id >= 0 && !(storm && STORM_BERTHS.includes(b))).length, open = storm ? 2 : 4;
@@ -717,10 +844,30 @@ function renderInspector(s) {
       <div class="sec">Lifeline orders by tier<span>on time / total</span></div><ul class="rows">${['medical', 'energy', 'food', 'industry'].map(t => {
         const ks = LIFELINE.filter(k => ORDERS[k].tier === t), ok = ks.filter(k => f.orderDone[k] >= 0 && f.orderDone[k] <= ORDERS[k].dueS).length;
         const late = ks.filter(k => f.orderDone[k] > ORDERS[k].dueS || (f.orderDone[k] < 0 && s > ORDERS[k].dueS)).length;
-        const risk = ks.filter(k => orderStatus(k, f, s).cls === 'amber' || orderStatus(k, f, s).cls === 'red').length;
+        const risk = ks.filter(k => f.orderDone[k] < 0 && s <= ORDERS[k].dueS && (run.stages[k][4] < 0 || run.stages[k][4] > ORDERS[k].dueS)).length;
         return `<li><span class="sw" style="background:${TIER_COL[t]}"></span><span class="grow">${TIER_NAME[t]}<small>${ks.length} storm orders</small></span><span class="n">${ok}/${ks.length}</span>${late ? chip('red', late + ' late') : risk ? chip('amber', risk + ' at risk') : chip('green', 'On track')}</li>`;
       }).join('')}</ul>
-      ${sel === DRILL ? '' : '<div class="btnrow"><button class="btn primary" data-act="drill">Run the storm drill yourself</button></div>'}`;
+      ${sel === DRILL ? '<div class="btnrow"><button class="btn" data-act="restart">Restart the drill</button></div>' : '<div class="btnrow"><button class="btn primary" data-act="drill">Run the storm drill yourself</button></div>'}`;
+  } else if (focus.type === 'decision' && pending && isStory(pending.p)) {
+    const ev = pending, i = +ev.p.id.split(':')[1], t = STORIES[i];
+    const card = c => {
+      const X = ev.runs[c], rec = ev.rec === c;
+      return `<div class="opt ${rec ? 'rec' : ''}"><div class="opt-h"><b>${STORY_OPTIONS[c]}</b>${rec ? chip('blue', 'Suggested') : ''}</div>
+        <div class="opt-n">${onSetOf(X).length}/${LIFELINE.length} lifeline on time · waiting charges ${money(X.charges)}${X.medLate ? ` · <span class="down">${X.medLate} medical late</span>` : ''}</div>
+        <ul class="opt-l">${storyLines(ev, c).map(([c2, tx]) => `<li class="${c2}">${tx}</li>`).join('')}</ul>
+        <button class="btn ${rec ? 'primary' : ''}" data-choose="${c}" style="width:100%;margin-top:8px">${rec ? 'Choose (suggested)' : 'Choose'}</button></div>`;
+    };
+    h = head('box', 'Decision · ' + clockOf(ev.p.s) + ' · terminal planner', `${NUM_WORD[t.conflicts]} stories, one box`, t.code + ' · off ' + SHIPS[t.ship].name, false) +
+      storyTable(t) + storyRead(t) +
+      `<p class="hint">PortTable ran the rest of the shift for each option, assuming the forecast holds.</p>
+      ${ev.opts.map(card).join('')}
+      <div class="opt off"><div class="opt-h"><b>${STORY_OPTIONS.release}</b>${chip('gray', 'Blocked')}</div><div class="opt-n">${t.hold ? 'Customs has a hold on it. Only customs can release it; overriding the hold would be illegal.' : 'The carrier\'s weight is wrong by more than the legal margin; it must be re-weighed first.'}</div></div>`;
+  } else if (focus.type === 'box') {
+    const i = focus.i, t = STORIES[i], st = f.exc[i], e = run.exc[i];
+    h = head('box', t.conflicts >= 2 ? `Flagged · ${t.conflicts} stories disagree` : 'Single flag · routine', t.code, `Off ${SHIPS[t.ship].name} · to ${t.dest}`) +
+      `<div class="status">${boxChip(i, f, s, run)}</div>` + storyTable(t) +
+      (t.conflicts >= 2 ? (run.plan.kind === 'today' ? `<div class="sugg warnbox"><b>Today: nobody connects the stories</b><span>Each system holds one piece. The conflict only surfaces when the box reaches a gate lane, and that lane stops while people sort it out.</span></div>` : storyRead(t)) : '<p class="hint">Only one source raises an issue, so the box stays in the normal flow.</p>') +
+      `<dl class="fields">${field('Contents', t.contents)}${e.at >= 0 ? field('Off the ship', clockOf(e.at)) : ''}${e.how ? field('Handling', CHOICE_LABEL[e.how] || 'Separated (normal exam)') : ''}${t.reefer ? field('Reefer', e.plugged ? 'Plugged in at the exception bay' : 'Unplugged') : ''}</dl>`;
   } else if (focus.type === 'decision' && pending) {
     const ev = pending, opt = (c) => {
       const X = c === 'approve' ? ev.A : ev.B, Y = c === 'approve' ? ev.B : ev.A, rec = ev.rec === c;
@@ -728,17 +875,18 @@ function renderInspector(s) {
         <div class="opt-n">${onSetOf(X).length}/${LIFELINE.length} lifeline orders on time · ${X.medLate ? `<span class="down">${X.medLate} medical late</span>` : 'no medical late'}</div>
         <ul class="opt-l">${outcomeLines(X, Y).map(([c2, t]) => `<li class="${c2}">${t}</li>`).join('') || '<li>No change to lifeline orders</li>'}</ul></div>`;
     };
-    h = head('plan', 'Decision · ' + clockOf(ev.p.s), decisionTitle(ev.p), 'PortTable ran the rest of the shift both ways', false) +
+    h = head('plan', 'Decision · ' + clockOf(ev.p.s), decisionTitle(ev.p), 'PortTable ran the rest of the shift both ways, assuming the forecast holds', false) +
       `<p class="ctx">${decisionContext(ev.p)}</p>
       <div class="sugg"><b>PortTable suggests: ${ev.rec === 'approve' ? 'Approve' : 'Reject'}</b><span>${recReason(ev)}</span></div>
       ${opt('approve')}${opt('reject')}
-      <div class="btnrow"><button class="btn ${ev.rec === 'reject' ? 'primary' : ''}" data-act="reject">Reject</button><button class="btn ${ev.rec === 'approve' ? 'primary' : ''}" data-act="approve">Approve</button></div>
-      <button class="linkbtn" data-act="delegate">Let PortTable decide the rest of this storm</button>`;
+      <button class="linkbtn" data-act="delegate">Let PortTable decide the rest of this storm</button>
+      <div class="btnrow sticky"><button class="btn ${ev.rec === 'reject' ? 'primary' : ''}" data-act="reject">Reject</button><button class="btn ${ev.rec === 'approve' ? 'primary' : ''}" data-act="approve">Approve</button></div>`;
   } else if (focus.type === 'log') {
     const e = decisionLog[focus.i];
     if (!e) { focus = { type: 'port' }; return renderInspector(s); }
+    const binary = e.choice === 'approve' || e.choice === 'reject';
     h = head('plan', 'Decision log · ' + clockOf(e.s), e.title, e.how === 'human' ? (e.choice === e.rec ? 'You followed PortTable\'s suggestion' : 'You overrode PortTable\'s suggestion') : e.how === 'auto' ? 'Handled by PortTable: no lifeline order depended on it' : 'Delegated to PortTable') +
-      `<div class="status">${chip(e.choice === 'approve' ? 'green' : 'gray', e.choice === 'approve' ? 'Approved' : 'Rejected')}${chip('blue', 'Suggested: ' + (e.rec === 'approve' ? 'approve' : 'reject'))}</div>
+      `<div class="status">${chip(e.choice === 'reject' || e.choice.startsWith('hold') ? 'gray' : 'green', CHOICE_LABEL[e.choice])}${chip('blue', 'Suggested: ' + CHOICE_LABEL[e.rec].toLowerCase())}</div>
       <dl class="fields">${field('Forecast after this call', e.onL + '/' + LIFELINE.length + ' lifeline on time')}</dl>
       ${e.lines.length ? `<ul class="opt-l" style="margin-top:8px">${e.lines.map(([c2, t]) => `<li class="${c2}">${t}</li>`).join('')}</ul>` : ''}
       <div class="btnrow"><button class="btn" data-act="revisit">Revisit this decision</button></div>`;
@@ -783,6 +931,7 @@ function renderInspector(s) {
     const where = { due: 'Ship not here yet', anchor: 'On a ship at anchor', berth: 'On a ship at berth', yard: 'In the container yard', road: 'On a truck', done: 'Delivered' }[f.orderWhere[k]];
     h = head('dest', 'Lifeline order · ' + TIER_NAME[o.tier], o.what, `${ORD_ID(k)} · to ${DESTS[DIDX[o.dest]].name}`) +
       `<div class="status">${chip(st.cls, st.label)}</div>
+      ${o.why ? `<p class="hint">Why ${o.due}: ${o.why}</p>` : ''}
       <dl class="fields">${field('Due', o.due)}${field('Where now', where)}${f.orderDone[k] >= 0 ? field('Delivered at', clockOf(f.orderDone[k])) : field('Forecast delivery', fin >= 0 ? clockOf(fin) : 'After the shift')}${field('Ship', SHIPS[o.ship].name)}${field('Boxes', o.n)}${field('On-time bonus', money(o.bonus))}</dl>
       <div class="btnrow"><button class="btn" data-sel="ship:${o.ship}">Inspect ship</button><button class="btn" data-sel="dest:${DIDX[o.dest]}">Destination</button></div>`;
   }
@@ -794,26 +943,29 @@ $('inspector').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   if (b.dataset.act === 'close') select({ type: 'port' }, false);
   else if (b.dataset.act === 'locate') flyFocus(entityPos(focus), focus.type === 'yard' ? 60 : 42);
+  else if (b.dataset.act === 'restart') restartDrill();
   else if (b.dataset.act === 'drill') { focus = { type: 'port' }; selectRun(DRILL, false); }
   else if (b.dataset.act === 'approve' || b.dataset.act === 'reject') decideNow(b.dataset.act, 'human');
+  else if (b.dataset.choose) decideNow(b.dataset.choose, 'human');
   else if (b.dataset.act === 'delegate') { delegated = true; resumeAfter = true; decideNow(pending.rec, 'delegated'); }
   else if (b.dataset.act === 'revisit') revisit(focus.i);
 });
 
+function lanesOpen(run, f) { return f.gateHold ? 0 : Math.max(0, Math.min(5, Math.round(f.cap / ((run.plan.kind === 'today' ? GATE_TODAY : GATE_PT) / 5)))); }
 function renderKPIs(s) {
-  const run = runs[sel], f = run.frames[s], t = runs[TODAY].frames[s];
+  const run = view(), f = run.frames[s], t = runs[TODAY].frames[s];
   const on = k => (fr) => fr.orderDone[k] >= 0 && fr.orderDone[k] <= ORDERS[k].dueS;
   const onNow = LIFELINE.filter(k => on(k)(f)).length, onToday = LIFELINE.filter(k => on(k)(t)).length;
   const late = LIFELINE.filter(k => f.orderDone[k] > ORDERS[k].dueS || (f.orderDone[k] < 0 && s > ORDERS[k].dueS)).length;
   const d = onNow - onToday;
   const kpi = (icon, lb, v, delta, sub) => `<div class="kpi card"><div class="ico">${icon}</div><div><div class="lb">${lb}</div><div class="v">${v}${delta}</div><div class="s">${sub}</div></div></div>`;
-  $('kpis').innerHTML = `<div class="kpi card runcard"><div class="ico" style="background:${run.color};color:#fff;font-weight:800;font-size:12px">${run.code}</div><div><div class="lb">Viewing</div><div class="v" style="font-size:16px">${run.name}</div><div class="s">${sel === DRILL ? decisionLog.filter(e => e.how === 'human').length + ' calls made by you' : run.sub}</div></div></div>` +
-    kpi(ICON.dest, 'Lifeline orders on time', `${onNow}/${LIFELINE.length}`, sel !== TODAY && d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs today</span>` : '', late ? `<span class="down">${late} late so far</span>` : 'none late so far') +
+  $('kpis').innerHTML =
+    kpi(ICON.dest, 'Lifeline orders on time', `${onNow}/${LIFELINE.length}`, sel !== TODAY && d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs today</span>` : '', (late ? `<span class="down">${late} late so far</span>` : 'none late so far') + ` · result ${run.onL}/${LIFELINE.length}`) +
     kpi(ICON.ship, 'Lifeline boxes still in port', LIFELINE.filter(k => ['anchor', 'berth', 'yard'].includes(f.orderWhere[k])).reduce((a, k) => a + ORDERS[k].n, 0), '', `${f.anchor.length} ships waiting · ${inStorm(s) ? 2 : 4} of 4 berths open`) +
-    kpi(ICON.yard, 'Yard wait for pickup', `~${f.waitMin} min`, '', run.plan.kind === 'today' ? 'walk-up trucks' : 'booked truck slots');
+    kpi(ICON.gate, 'Waiting charges', money(f.charges), '', `${lanesOpen(run, f)} of 5 gate lanes moving · yard wait ~${f.waitMin} min`);
 }
 function renderTimeline(s) {
-  const run = runs[sel], f = run.frames[s], k = tlOrder, o = ORDERS[k], st = run.stages[k], status = orderStatus(k, f, s);
+  const run = view(), f = run.frames[s], k = tlOrder, o = ORDERS[k], st = run.stages[k], status = orderStatus(k, f, s);
   const reached = st.map(x => x >= 0 && x <= s);
   const curIdx = reached.lastIndexOf(true);
   const late = s > o.dueS && f.orderDone[k] < 0;
@@ -832,8 +984,8 @@ $('timeline').addEventListener('click', e => {
   if (e.target.closest('[data-sel]')) select({ type: 'order', k: tlOrder }, true);
 });
 function renderOps(s) {
-  const run = runs[sel], f = run.frames[s], storm = inStorm(s), smart = run.plan.kind === 'porttable';
-  const tabs = { berths: `Berths ${f.berth.filter(x => x >= 0).length}/4`, orders: `Orders ${LIFELINE.length}`, ships: `Ships ${f.anchor.length}`, log: `Decisions ${decisionLog.length}` };
+  const run = view(), f = run.frames[s], storm = inStorm(s), smart = run.plan.kind === 'porttable';
+  const tabs = { berths: `Berths ${f.berth.filter(x => x >= 0).length}/4`, orders: `Orders ${LIFELINE.length}`, ships: `Ships ${f.anchor.length}`, exc: `Exceptions ${STORIES.filter((t, i) => t.conflicts >= 2 && !['ship'].includes(f.exc[i])).length}`, log: `Decisions ${decisionLog.length}` };
   document.querySelectorAll('#tabs [data-tab]').forEach(b => { b.textContent = tabs[b.dataset.tab]; b.setAttribute('aria-selected', String(b.dataset.tab === tab)); });
   let rows = '';
   const chev = '<span class="c">›</span>';
@@ -854,6 +1006,13 @@ function renderOps(s) {
       return `<li data-sel="ship:${sh.id}" class="${focus.type === 'ship' && focus.id === sh.id ? 'sel' : ''}"><span class="k">${sh.name.split(' ')[0]}<small>${sh.boxes} boxes</small></span><span class="d">${ks.length ? ks.map(k => `<i style="background:${TIER_COL[ORDERS[k].tier]}"></i>`).join('') + ORDERS[ks[0]].what : '<span class="muted">General cargo</span>'}</span>${chip(st.cls, st.label.replace('Waiting at anchor', 'Waiting').replace(/Unloading at /, '').replace('Stuck: berth closed', 'Stuck'))}<span class="m">${clockOf(sh.s0)}</span>${chev}</li>`;
     }).join('') || '<li style="cursor:default"><span class="muted" style="grid-column:1/-1">No ships at anchor or berth.</span></li>';
   }
+  if (tab === 'exc') {
+    const urg = i => { const t = STORIES[i], e = run.exc[i]; return t.reefer && !e.plugged && !['delivered', 'spoiled', 'road', 'ship'].includes(f.exc[i]) ? e.at + t.spoil - s : 999 + (4 - t.conflicts); };
+    const list = STORIES.map((t, i) => i).filter(i => f.exc[i] !== 'ship').sort((a, b) => urg(a) - urg(b));
+    rows = list.map(i => { const t = STORIES[i];
+      return `<li data-sel="box:${i}" class="${focus.type === 'box' && focus.i === i ? 'sel' : ''}"><span class="k">${t.code.slice(0, 11)}<small>${t.conflicts >= 2 ? t.conflicts + ' stories' : '1 flag'}</small></span><span class="d">${t.conflicts >= 2 ? SOURCES.filter(k => t.says[k][1]).map(k => SOURCE_NAME[k].split(' ')[0]).join(' · ') : 'Routine, normal flow'}</span>${boxChip(i, f, s, run).split('</span>')[0] + '</span>'}<span class="m">${t.reefer ? 'reefer' : ''}</span><span class="c">›</span></li>`; }).join('')
+      || '<li style="cursor:default"><span class="muted" style="grid-column:1/-1">No flagged boxes have come off a ship yet. The first arrives around 1 PM.</span></li>';
+  }
   if (tab === 'log') {
     rows = decisionLog.map((e, i) => `<li data-sel="log:${i}" class="${focus.type === 'log' && focus.i === i ? 'sel' : ''}"><span class="k">${clockOf(e.s)}<small>${e.how === 'human' ? 'you' : e.how === 'auto' ? 'auto' : 'delegated'}</small></span><span class="d">${e.title}</span>${chip(e.choice === 'approve' ? 'green' : 'gray', e.choice === 'approve' ? 'Approved' : 'Rejected')}<span class="m">${e.how === 'human' ? (e.choice === e.rec ? 'followed' : 'overrode') : ''}</span><span class="c">›</span></li>`).join('')
       || `<li style="cursor:default"><span class="muted" style="grid-column:1/-1">${sel === DRILL ? 'No decisions yet. The first one arrives with the storm forecast at 11:00.' : 'Decisions are made in the storm drill. Pick "Storm drill · you decide" in the scenario menu.'}</span></li>`;
@@ -865,6 +1024,7 @@ $('oplist').addEventListener('click', e => {
   const li = e.target.closest('[data-sel]'); if (!li) return;
   const [type, v] = li.dataset.sel.split(':');
   if (type === 'log') { focus = { type: 'log', i: +v }; renderPanels(curStep); return; }
+  if (type === 'box') { select({ type: 'box', i: +v }, true); return; }
   select(type === 'berth' ? { type, b: +v } : type === 'order' ? { type, k: +v } : { type, id: +v }, true);
 });
 function renderSite() {
@@ -888,7 +1048,10 @@ function renderPanels(s) { renderKPIs(s); renderInspector(s); renderTimeline(s);
 function selectRun(i, restart) {
   if (i !== TODAY) lastSmart = i;
   sel = i; snap = true;
-  if (i === DRILL) { tab = 'log'; if (pending) focus = { type: 'decision' }; }
+  if (i === DRILL) {
+    tab = 'log'; if (pending) focus = { type: 'decision' };
+    if (!decisionLog.length && !pending) { frameF = MODE_S - 3; notice('Storm drill: you decide', 'It starts at 10:30. The storm forecast arrives at 11:00 and PortTable will ask for your first call.', 'blue'); }
+  }
   else if (tab === 'log') tab = 'berths';
   if (restart) { frameF = PRESTORM; playing = !reduced; }
   renderSite(); updatePlay(); tick(true);
@@ -899,15 +1062,18 @@ function updatePlay() {
   $('playBtn').classList.toggle('primary', !playing);
 }
 function showReport() {
-  const list = runs.map((r, i) => [r, i]).filter(([r, i]) => i <= DRILL || i === sel || i === runs.length - 1);
-  $('repBody').innerHTML = list.map(([r, i]) => `<tr class="${i === sel ? 'cur' : ''}"><td>${r.name}</td><td>${r.onL}/${LIFELINE.length}</td><td class="${r.medLate ? 'bad' : ''}">${r.medLate}</td><td>${fmt(r.delivered)}</td><td>${money(r.value)}</td></tr>`).join('');
+  const played = decisionLog.some(e => e.how === 'human');
+  const list = runs.map((r, i) => [r, i]).filter(([r, i]) => i <= AUTO || (i === DRILL && played));
+  $('repBody').innerHTML = list.map(([r, i]) => `<tr class="${i === sel ? 'cur' : ''}"><td>${r.name}</td><td>${r.onL}/${LIFELINE.length}</td><td class="${r.medLate ? 'bad' : ''}">${r.medLate}</td><td>${fmt(r.delivered)}</td><td class="${r.spoiled ? 'bad' : ''}">${r.spoiled}</td><td>${money(r.charges)}</td></tr>`).join('');
   const t = runs[TODAY], l1 = runs[1], a = runs[AUTO];
-  $('repNote').textContent = `Same storm, same ships. Booking alone (Life 1) gets ${l1.onL - t.onL} more lifeline orders out on time than today's port. Switching to lifeline mode in the storm (Life 2) adds ${a.onL - l1.onL} more, and no medical order arrives late.` + (decisionLog.length ? ` In the drill you made ${decisionLog.filter(e => e.how === 'human').length} calls and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}.` : '');
+  const n = x => `${x} more lifeline order${x === 1 ? '' : 's'}`;
+  $('repNote').textContent = `Same storm, same ships. On a normal day, booked slots cut the average yard wait before the storm from ${t.life1WaitMin} to ${l1.life1WaitMin} minutes (Life 1). When the storm forecast arrives, lifeline mode gets ${n(a.onL - l1.onL)} out on time and no medical order arrives late (Life 2).` +
+    (played ? ` In the drill you made ${decisionLog.filter(e => e.how === 'human').length} calls and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}; your shift ended ${runs[DRILL].onL}/${LIFELINE.length}.` : '');
   $('reportModal').hidden = false; $('repClose').focus();
 }
 
 function onStep(s, prev) {
-  const run = runs[sel], f = run.frames[s];
+  const run = view(), f = run.frames[s];
   if (prev >= 0 && s > prev && s - prev < 6) {
     LIFELINE.forEach(k => {
       const d = f.orderDone[k];
@@ -940,7 +1106,7 @@ function togglePlay() {
   if (!playing && frameF >= STEPS - 1) frameF = sel === DRILL ? 0 : PRESTORM;
   playing = !playing; updatePlay();
 }
-function jumpStorm() { frameF = PRESTORM; snap = true; reportShownFor.clear(); tick(true); }
+function jumpStorm() { if (sel === DRILL && nextPending()) return nextDecisionJump(); frameF = PRESTORM; snap = true; reportShownFor.clear(); tick(true); }
 function swapRuns() { selectRun(sel === TODAY ? lastSmart : TODAY, false); flyPending = true; }
 function stepBy(d) { frameF = Math.max(0, Math.min(STEPS - 1, Math.floor(frameF) + d)); playing = false; snap = true; updatePlay(); tick(); }
 $('stormBand').style.left = (STORM_START / (STEPS - 1) * 100) + '%';
@@ -949,6 +1115,9 @@ $('scrub').addEventListener('input', e => { frameF = +e.target.value; playing = 
 $('playBtn').addEventListener('click', togglePlay);
 $('stormBtn').addEventListener('click', jumpStorm);
 $('decOpen').addEventListener('click', () => { focus = { type: 'decision' }; renderInspector(curStep); $('inspector').scrollTop = 0; });
+$('decApprove').addEventListener('click', () => decideNow(pending && isStory(pending.p) ? 'separate' : 'approve', 'human'));
+$('decReject').addEventListener('click', () => decideNow('reject', 'human'));
+$('repRestart').addEventListener('click', () => { $('reportModal').hidden = true; if (sel !== DRILL) selectRun(DRILL, false); restartDrill(); });
 $('swapBtn').addEventListener('click', swapRuns);
 $('speedBtn').addEventListener('click', () => { speedIdx = (speedIdx + 1) % SPEEDS.length; $('speedBtn').textContent = speedIdx ? '3×' : '1×'; });
 function dolly(k) { if (!controls) return; const off = camera.position.clone().sub(controls.target); off.multiplyScalar(k); const l = off.length(); if (l < controls.minDistance || l > controls.maxDistance) return; flyTo(controls.target.clone().add(off), controls.target.clone()); }

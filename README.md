@@ -15,19 +15,34 @@ Suggested 3-minute demo:
 
 1. It opens on **Today** at 1:30 PM. Scrub to 4 PM: the insulin ship is stranded at a berth the wind has closed.
 2. Press **T** to see **PortTable** at the same moment: the insulin was swapped into a sheltered berth and delivered at 2 PM.
-3. Pick **Storm drill · you decide** from the scenario menu. At 11:00 PortTable asks whether to declare lifeline mode, later whether to swap the insulin ship into a safe berth or dig buried boxes out. Each card shows PortTable's suggestion and the forecast for both choices.
+3. Pick **Storm drill · you decide** from the scenario menu. At 11:00 PortTable asks whether to declare lifeline mode; at 1 PM whether to swap the insulin ship into a sheltered berth (insulin and dialysis on time, but baby formula late). Press **S** to jump to each decision. At 5:20 PM the four-stories box arrives (see below). Each card shows PortTable's suggestion and the forecast for every option.
 4. Play to the end for the shift report.
 
 Controls: drag to orbit, scroll to zoom, click ships, cranes, the yard, the gate, trucks or buildings. Keys: `Space` play, `T` Today ↔ PortTable, `S` jump to the storm, `←`/`→` step 10 minutes, `Esc` clear selection.
+
+## One box, four stories
+
+The challenge's terminal-planner scenario is built in. Container PTLU 448812 3 comes off Golden Tern during the storm, and every source tells a different story:
+
+| Source | What it says |
+| --- | --- |
+| Carrier manifest | Empty, repositioning |
+| Terminal scale | 26.4 t gross |
+| Customs | Hold: agriculture exam |
+| Reefer plug | −9 °C against −18 °C set, warming |
+
+PortTable compares the sources for every box as it comes off the ship. When two or more disagree or raise an issue, it flags the box and moves it to an **exception bay** before it can stop a gate lane; a box with a single routine flag stays in the normal flow. Today the conflict only surfaces at the gate, a lane stops for about an hour while half the lanes are already flooded, the reefer sits unplugged and spoils, and waiting charges climb.
+
+In the storm drill, a box with three or more conflicting stories goes to the terminal planner with PortTable's read on which source to trust (the scale and the reefer plug are physical readings from today; the carrier's "empty" is contradicted; the customs hold is binding) and a forecast for each option: separate it (suggested), hold just that box, or hold the whole gate. Releasing it on the carrier's word is shown but blocked. The **Exceptions** tab ranks flagged boxes by which one can't wait.
 
 ## Results in the simulation
 
 | Scenario | Lifeline orders on time (of 10) |
 | --- | --- |
-| Today: walk-up trucks, first come, first served | 3 |
-| PortTable, Life 1 only (booked slots) | 4 |
-| PortTable autopilot (takes every suggestion) | 9 |
-| Storm drill (you decide) | depends on your calls; rejecting lifeline mode gives 4 |
+| Today: walk-up trucks, first come, first served | 2 |
+| PortTable, Life 1 only (booked slots) | 3 |
+| PortTable autopilot (takes every suggestion) | 8 |
+| Storm drill (you decide) | depends on your calls; rejecting lifeline mode gives 3 |
 
 These numbers come from a small deterministic model with illustrative values. They compare plans; they don't forecast a real port.
 
