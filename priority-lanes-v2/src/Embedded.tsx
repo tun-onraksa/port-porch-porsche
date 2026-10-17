@@ -8,6 +8,7 @@ import { Drill } from './screens/Drill.tsx'
 import { Security } from './screens/Security.tsx'
 import { Learning } from './screens/Learning.tsx'
 import { HowBuilt } from './screens/HowBuilt.tsx'
+import { RulebookScreen } from './live/RulebookScreen.tsx' // PortAble kit
 import { Btn, Segmented } from './ui/primitives.tsx'
 export const EMBEDDED = new URLSearchParams(location.search).get('porttable') === '1' && window.parent !== window
 export function hostCommand(type:string, data:Record<string,unknown> = {}) { if(EMBEDDED)parent.postMessage({source:'priority-lanes',type,...data},location.origin) }
@@ -23,7 +24,7 @@ export function Embedded(){
   {app.mode==='drill'&&<p className="embedded-notice">Rehearsal only: drill actions do not change the terminal simulation.</p>}
   {app.screen==='box'&&selected&&<div className="embedded-inspect"><span><b>{selected.number}</b> · same container in the order board and 3D yard</span><Btn onClick={()=>hostCommand('inspect',{number:selected.number})}>Inspect this cargo in 3D →</Btn></div>}
   <main id="main" className="embedded-content">
-   {app.screen==='radar'&&<PreArrival/>}{app.screen==='gate'&&<GateCommand/>}{app.screen==='box'&&<BoxDetail/>}{app.screen==='forecast'&&<GateForecast/>}{app.screen==='drill'&&<Drill/>}{app.screen==='security'&&<Security/>}{app.screen==='learning'&&<Learning/>}{app.screen==='built'&&<HowBuilt/>}
+   {app.screen==='radar'&&<PreArrival/>}{app.screen==='gate'&&<GateCommand/>}{app.screen==='box'&&<BoxDetail/>}{app.screen==='forecast'&&<GateForecast/>}{app.screen==='drill'&&<Drill/>}{app.screen==='security'&&<Security/>}{app.screen==='learning'&&<Learning/>}{app.screen==='built'&&<HowBuilt/>}{app.screen==='rulebook'&&<RulebookScreen/>}
   </main>
  </div>
 }

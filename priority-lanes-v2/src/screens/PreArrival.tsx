@@ -10,6 +10,7 @@ import { fmtDayTime, fmtTime, fmtWeekday } from '../engine/time.ts'
 import { Btn, cx, Kpi, LiveTag, Panel, SeverityBadge, SimTag } from '../ui/primitives.tsx'
 import { Modal, ScreenHeader, StageStrip } from '../ui/layout.tsx'
 import type { Severity } from '../engine/types.ts'
+import { TrackPanel } from '../live/TrackPanel.tsx' // PortAble kit
 
 const SEV_ORDER: Record<Severity, number> = { critical: 0, major: 1, minor: 2 }
 const CHECK_AS_OF = Date.parse('2026-10-27T20:00:00Z')
@@ -144,6 +145,7 @@ export function PreArrival() {
           <pre className="scroll-thin mt-4 max-h-[380px] overflow-auto rounded-lg border border-line bg-bg p-3 font-mono text-[11.5px] leading-relaxed text-ink-2">{JSON.stringify(SNAPSHOT, null, 2)}</pre>
         )}
       </Panel>
+      <TrackPanel /> {/* PortAble kit: live Terminal49 call */}
 
       {/* ---------------- simulated paperwork checks */}
       <Panel

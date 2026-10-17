@@ -1250,7 +1250,7 @@ renderOrchestrator();
 <script>
 // Shared workspace adapter for Priority Lanes V2 and the terminal simulation.
 // Only exact-origin messages from our dashboard frame may edit this mock scenario.
-const priorityPages={radar:['Pre-arrival radar','Paperwork & source data'],gate:['Gate command','Queue & decision statistics'],box:['Cargo evidence','Four stories, one box'],forecast:['Gate forecast','Demand & capacity'],drill:['Disruption drills','Rehearse a response'],security:['Security review','Conflicting source evidence'],learning:['Learning log','Outcomes & reliability'],built:['Data & methodology','Sources & model assumptions']};
+const priorityPages={radar:['Pre-arrival radar','Paperwork & source data'],gate:['Gate command','Queue & decision statistics'],box:['Cargo evidence','Four stories, one box'],forecast:['Gate forecast','Demand & capacity'],drill:['Disruption drills','Rehearse a response'],security:['Security review','Conflicting source evidence'],learning:['Learning log','Outcomes & reliability'],built:['Data & methodology','Sources & model assumptions'],rulebook:['Rulebook','Your priority rules']}; // PortAble kit: + rulebook
 let priorityActions=[],priorityDecisionSignature='',priorityForecast=null,priorityLog=[],prioritySelectedNumber=PRIORITY_CARGO.find(c=>c.id==='sim-0001')?.number||PRIORITY_CARGO[4].number;
 let priorityReady=false;
 const priorityPane=document.createElement('section');priorityPane.id='priorityDashboard';priorityPane.hidden=true;priorityPane.innerHTML='<iframe id="priorityFrame" title="Priority Lanes operational dashboards" src="priority-lanes-v2/priority-lanes.html?porttable=1#gate"></iframe>';$('main').append(priorityPane);
