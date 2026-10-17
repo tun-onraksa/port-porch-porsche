@@ -429,7 +429,7 @@ function animate(t) {
   const b=f.berth.indexOf(i); o.g.position.set(b>=0?-33:-52-i*8,0,b>=0?wz(BERTH_Y[b]):-18+i*14); o.g.rotation.y=Math.PI/2;if(sh)o.inst.count=Math.ceil(28*f.remaining[i]/sh.boxes);
  });
  const n=Math.min(f.yard,YARD_SLOTS.length*3); yardInst.count=n;
- for(let i=0;i<n;i++){const p=YARD_SLOTS[i%YARD_SLOTS.length];temp.position.set(wx(p.x),.8+Math.floor(i/YARD_SLOTS.length)*1.1,wz(p.y));temp.updateMatrix();yardInst.setMatrixAt(i,temp.matrix);yardInst.setColorAt(i,new THREE.Color(visibleCargo[i]&&typeof cargoHeld==='function'&&cargoHeld(visibleCargo[i])?0xd28a22:visibleCargo[i]&&currentStep-visibleCargo[i].dischargeStep>=currentRates.releaseHours*6?0x14724e:0x235bc5));}
+ for(let i=0;i<n;i++){const p=YARD_SLOTS[i%YARD_SLOTS.length];temp.position.set(wx(p.x),.8+Math.floor(i/YARD_SLOTS.length)*1.1,wz(p.y));temp.updateMatrix();yardInst.setMatrixAt(i,temp.matrix);yardInst.setColorAt(i,new THREE.Color(visibleCargo[i]&&typeof cargoHeld==='function'&&cargoHeld(visibleCargo[i])?0xd28a22:visibleCargo[i]&&(visibleCargo[i].preDischarged||currentStep-visibleCargo[i].dischargeStep>=currentRates.releaseHours*6)?0x14724e:0x235bc5));}
  yardInst.instanceMatrix.needsUpdate=true; if(yardInst.instanceColor)yardInst.instanceColor.needsUpdate=true;
  setTag(tags.anchor,'Queue: '+f.waiting+' ships');place(tags.anchor);
  tags.dests.forEach(tag=>tag.el.style.display='none');

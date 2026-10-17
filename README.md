@@ -1,5 +1,29 @@
 # PortTable — Long Beach cost-planning demo
 
+## Integrated Priority Lanes workspace
+
+The `dev` branch combines PortTable's 3D simulation, order board, action cards and cost ledger with all eight Priority Lanes V2 dashboards. Serve this directory and open `index.html#p-gate` for Gate Command, or `index.html#live` for the simulation. Dashboard pages appear under **Decision intelligence** and follow the workspace's light/dark appearance.
+
+- Opening a dashboard selects **Priority Lanes · 112 containers**. Four identities come from Terminal49; 108 containers and all post-arrival evidence are mocked. The original four-container sample and 1,000-container busy-day scenario remain available.
+- All 112 start in the simulation yard at 06:00, already discharged. Cargo evidence opens that exact container in 3D; order records also link to its evidence. Geometry is illustrative.
+- Gate approvals change future simulation intervals: priority cargo moves ahead, slow actions delay pickup, rail routing requires staffed rail capacity, and inspection/hold actions prevent departure until changed. Source holds cannot be overridden by release. Historical frames remain unchanged.
+- Gate forecasts retain the mocked Oct 29 07:30 appointments and evidence, using approved gate count, workers, hours and gate productivity. The 36-hour forecast repeats that daily schedule. Terminal playback has its own 06:00–06:00 clock; the forecast is not a replay of the animation.
+- Gate delay/handling estimates and terminal operating expenses have different scopes and are displayed separately. Drills do not modify the terminal simulation.
+- Dashboard approvals, learning outcomes and integration history are session-only. Resource settings and existing order annotations retain their local storage behavior. No external notifications are sent.
+
+Build both parts after editing (Node 24+ and Python 3):
+
+```sh
+cd priority-lanes-v2
+npm ci
+npm run build:integrated
+cd ..
+node tests/simulation.cjs
+python3 -m http.server 8765 --bind 127.0.0.1
+```
+
+`src/priority-workspace.js` connects dashboard and terminal state through validated same-origin messages. `src/priority-data.js` is generated from Shannon's scenario and evaluation engine by `priority-lanes-v2/scripts/export-porttable.ts`. The standalone dashboard remains at `priority-lanes-v2/priority-lanes.html`; the workspace uses its embedded presentation. `priority-lanes-demo.html` preserves the earlier V1 demo from the merged branch.
+
 A hypothetical container-terminal planning scenario in the existing PortTable 3D port. Compare operating plans using six decisions: available berths, scheduled cranes, workers per shift, operating hours, yard space, and truck-gate/rail capacity.
 
 Open `index.html` in a desktop browser. The 3D view requires WebGL and the Three.js CDN; the calculations and controls work without the CDN. Drag to orbit and scroll to zoom.

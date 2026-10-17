@@ -10,8 +10,9 @@ function simulate(plan=DEFAULT_PLAN,rates=DEFAULT_RATES,stress=false,options={})
  let p={...(options.initialPlan||plan)};const r={...rates};
  for(const v of [...Object.values(p),...Object.values(r)])if(!Number.isFinite(v)||v<0)throw Error('Inputs must be finite and non-negative');
  if(!Number.isInteger(p.berths)||p.berths>4)throw Error('This schematic supports 0–4 berths');
- const ships=stress?Array.from({length:4},(_,i)=>({name:'Synthetic call '+(i+1),arrival:i*12,boxes:250})): [{name:TERMINAL49.records[0].pod_vessel_name,arrival:0,boxes:TERMINAL49.records.length}];
- const containers=ships.flatMap((ship,shipIndex)=>Array.from({length:ship.boxes},(_,i)=>({number:stress?'SYN-'+(shipIndex+1)+'-'+String(i+1).padStart(3,'0'):TERMINAL49.records[i].number,shipIndex,dischargeStep:null,exitStep:null,exitMode:null})));
+ const priority=options.priorityCargo;
+ const ships=priority?[...new Set(priority.map(c=>c.pod_vessel_name))].map(name=>({name,arrival:0,boxes:priority.filter(c=>c.pod_vessel_name===name).length})):stress?Array.from({length:4},(_,i)=>({name:'Synthetic call '+(i+1),arrival:i*12,boxes:250})): [{name:TERMINAL49.records[0].pod_vessel_name,arrival:0,boxes:TERMINAL49.records.length}];
+ const containers=priority?priority.map(c=>({number:c.number,shipIndex:ships.findIndex(s=>s.name===c.pod_vessel_name),preDischarged:true,dischargeStep:0,exitStep:null,exitMode:null})):ships.flatMap((ship,shipIndex)=>Array.from({length:ship.boxes},(_,i)=>({number:stress?'SYN-'+(shipIndex+1)+'-'+String(i+1).padStart(3,'0'):TERMINAL49.records[i].number,shipIndex,dischargeStep:null,exitStep:null,exitMode:null})));
  const byShip=ships.map((_,i)=>containers.filter(c=>c.shipIndex===i));
  const remaining=ships.map(s=>s.boxes),berth=Array(4).fill(-1),yard=[],frames=[];
  let departed=0,truckOut=0,railOut=0,waitHours=0,containerHours=0,peakYard=0;
@@ -24,6 +25,9 @@ function simulate(plan=DEFAULT_PLAN,rates=DEFAULT_RATES,stress=false,options={})
  activeCranes=Math.min(p.cranes,p.berths*2,Math.floor(Math.max(0,p.workers-gateWorkers-railWorkers)/8));
  yardLimit=Math.floor(p.yardAcres*r.slotsPerAcre);}
  updateCapacity();
+ if(priority){remaining.fill(0);for(const cargo of containers)yard.push({at:-r.releaseHours*6,cargo});peakYard=yard.length;}
+ const cargoByNumber=new Map((priority||[]).map(c=>[c.number,c]));
+ const actionAt=(number,s)=>(options.cargoActions||[]).filter(a=>a.number===number&&a.step<=s).at(-1);
  const costs={berths:0,cranes:0,workers:0,yard:0,gates:0,rail:0,overhead:0};
  function snapshot(step,open){
   const cost=Math.round(Object.values(costs).reduce((a,b)=>a+b,0)*1e8)/1e8;
@@ -50,9 +54,11 @@ function simulate(plan=DEFAULT_PLAN,rates=DEFAULT_RATES,stress=false,options={})
    gateCredit+=gatesStaffed*r.gateProductivity/6;railCredit+=(railStaffed?p.rail:0)/6;
    let gateSlots=Math.floor(gateCredit),railSlots=Math.floor(railCredit);gateCredit-=gateSlots;railCredit-=railSlots;
    let readyIndex;
-   const releasable=item=>s-item.at>=r.releaseHours*6&&!(options.holdIds?.includes(item.cargo.number)&&s>=options.holdStart&&(options.releaseStep==null||s<options.releaseStep));
+   const eligible=item=>{if(!priority)return true;const c=cargoByNumber.get(item.cargo.number),a=actionAt(c.number,s);if(c.blocked)return false;if(a&&['hold','close','inspect'].includes(a.key))return false;if(a?.readyStep>s)return false;if(a?.key==='reroute'&&railSlots<=0)return false;return true;};
+   if(priority)yard.sort((a,b)=>{const rank=item=>{const action=actionAt(item.cargo.number,s);return action&&action.key!=='rejected'?cargoByNumber.get(item.cargo.number).priorityScore:0;};return rank(b)-rank(a);});
+   const releasable=item=>eligible(item)&&s-item.at>=r.releaseHours*6&&!(options.holdIds?.includes(item.cargo.number)&&s>=options.holdStart&&(options.releaseStep==null||s<options.releaseStep));
    while((gateSlots>0||railSlots>0)&&(readyIndex=yard.findIndex(releasable))>=0){
-    const item=yard.splice(readyIndex,1)[0];item.cargo.exitStep=s+1;item.cargo.exitMode=gateSlots>0?'Truck':'Rail';departed++;if(gateSlots>0){gateSlots--;truckOut++;}else{railSlots--;railOut++;}
+    const item=yard.splice(readyIndex,1)[0];item.cargo.exitStep=s+1;item.cargo.exitMode=gateSlots>0&&actionAt(item.cargo.number,s)?.key!=='reroute'?'Truck':'Rail';departed++;if(item.cargo.exitMode==='Truck'){gateSlots--;truckOut++;}else{railSlots--;railOut++;}
    }
   }
   for(let b=0;b<4;b++)if(berth[b]>=0&&remaining[berth[b]]===0)berth[b]=-1;

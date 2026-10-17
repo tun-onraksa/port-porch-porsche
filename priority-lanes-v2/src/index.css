@@ -1,0 +1,135 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'IBM Plex Sans Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 700;
+  src: url('../node_modules/@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+/* Control-room palette: dark, calm, high contrast. Status colours always ship with an icon
+   and a text label; they never carry meaning alone. */
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-bg: #070b13;
+  --color-panel: #0c1320;
+  --color-panel-2: #111a2b;
+  --color-panel-3: #17223a;
+  --color-line: #1d2940;
+  --color-line-2: #2b3a57;
+  --color-ink: #edf1f8;
+  --color-ink-2: #bcc7d9;
+  --color-muted: #8494ae;
+  --color-dim: #5d6c86;
+
+  /* status (fixed, never reused as a series colour) */
+  --color-good: #21b35b;
+  --color-warn: #fab219;
+  --color-serious: #ec835a;
+  --color-crit: #e5484d;
+  --color-info: #3987e5;
+
+  /* data provenance */
+  --color-sim: #9d8ff0;
+  --color-live: #1fbf86;
+
+  /* action ladder, gentle → blunt */
+  --color-a-release: #21b35b;
+  --color-a-watch: #38b2e8;
+  --color-a-flag: #fab219;
+  --color-a-slow: #94a3b8;
+  --color-a-reroute: #6d8ff7;
+  --color-a-inspect: #ec835a;
+  --color-a-hold: #e5484d;
+  --color-a-close: #c0265a;
+
+  /* chart series (validated reference palette, dark steps) */
+  --color-s-1: #3987e5;
+  --color-s-3: #199e70;
+  --color-s-other: #4a5568;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+
+body {
+  min-width: 320px;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-info) 45%, transparent);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-info);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hatched band for simulated content */
+.sim-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-sim) 22%, transparent) 0 8px,
+    color-mix(in oklab, var(--color-sim) 10%, transparent) 8px 16px
+  );
+}
+.drill-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-warn) 30%, transparent) 0 10px,
+    color-mix(in oklab, var(--color-warn) 14%, transparent) 10px 20px
+  );
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-2) transparent;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes flash-in {
+  from {
+    background: color-mix(in oklab, var(--color-good) 30%, transparent);
+  }
+}
+.flash-in {
+  animation: flash-in 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot,
+  .flash-in {
+    animation: none;
+  }
+}
+
+/* PortTable embedding uses the host's system typography and semantic palette. */
+html:has(.embedded-workspace){--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--color-bg:#f6f7f9;--color-panel:#fff;--color-panel-2:#f0f2f5;--color-panel-3:#eaf0fc;--color-line:#dde2e8;--color-line-2:#bdc8d7;--color-ink:#202a36;--color-ink-2:#475569;--color-muted:#5e6b7c;--color-dim:#627085;--color-info:#235bc5;--color-good:#14724e;--color-warn:#88540c;--color-crit:#b42318;--color-sim:#6852a3;--color-live:#14724e;color-scheme:light}
+@media(prefers-color-scheme:dark){html:has(.embedded-workspace){--color-bg:#151a22;--color-panel:#1d2530;--color-panel-2:#19212b;--color-panel-3:#253857;--color-line:#354152;--color-line-2:#53647c;--color-ink:#ecf0f5;--color-ink-2:#c4cedb;--color-muted:#afbac9;--color-dim:#9aa9bd;--color-info:#9abaff;--color-good:#9cddbc;--color-warn:#f4ca83;--color-crit:#ff8c82;--color-sim:#c3b4fa;--color-live:#9cddbc;color-scheme:dark}}
+.embedded-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:16px 20px;background:var(--color-panel);border-bottom:1px solid var(--color-line)}.embedded-toolbar>span{margin-right:auto}.embedded-toolbar small{display:block;color:var(--color-muted);font-size:11px}.embedded-context{display:flex;flex-direction:column;gap:5px;padding:14px 20px;background:var(--color-panel-3);font-size:12px;color:var(--color-ink-2)}.embedded-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:16px 20px}.embedded-stats>div,.embedded-stats>button{border:1px solid var(--color-line);border-radius:9px;padding:12px;background:var(--color-panel);text-align:left}.embedded-stats small{display:block;font-size:11px;color:var(--color-muted)}.embedded-stats b{display:block;font-size:16px;margin-top:5px}.embedded-content{padding:16px 20px 40px}.embedded-inspect{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 20px;font-size:13px}.embedded-notice{padding:12px 20px;background:var(--color-panel-3);color:var(--color-warn);font-size:13px}@media(max-width:760px){.embedded-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.embedded-stats>button{grid-column:1/-1}.embedded-toolbar,.embedded-content{padding:12px}.embedded-inspect{flex-direction:column;align-items:start}}

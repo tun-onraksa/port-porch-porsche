@@ -15,7 +15,7 @@ document.querySelectorAll('[data-focus]').forEach(b=>b.onclick=()=>inspectOperat
 function operationState(){
  const f=currentRun.frames[currentStep],p=f.plan,prev=currentRun.frames[Math.max(0,currentStep-1)];
  const inventory=currentRun.containers.filter(c=>c.dischargeStep!==null&&c.dischargeStep<=currentStep&&(c.exitStep===null||c.exitStep>currentStep));
- const ready=inventory.filter(c=>currentStep-c.dischargeStep>=currentRates.releaseHours*6&&!(typeof cargoHeld==='function'&&cargoHeld(c)));
+ const ready=inventory.filter(c=>(c.preDischarged||currentStep-c.dischargeStep>=currentRates.releaseHours*6)&&!(typeof cargoHeld==='function'&&cargoHeld(c)));
  const moves=currentRun.containers.filter(c=>c.dischargeStep===currentStep);
  const exits=currentRun.containers.filter(c=>c.exitStep===currentStep);
  const remaining=f.remaining.reduce((a,b)=>a+b,0);
