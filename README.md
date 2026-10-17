@@ -15,10 +15,10 @@ Suggested 3-minute demo:
 
 1. It opens on **Today** at 1:30 PM. Scrub to 4 PM: the insulin ship is stranded at a berth the wind has closed.
 2. Press **T** to see **PortTable** at the same moment: the insulin was swapped into a sheltered berth and delivered at 2 PM.
-3. Pick **Storm drill · you decide** from the scenario menu. At 11:00 PortTable asks whether to declare lifeline mode; at 1 PM whether to swap the insulin ship into a sheltered berth (insulin and dialysis on time, but baby formula late). Press **S** to jump to each decision. At 5:20 PM the four-stories box arrives (see below). Each card shows PortTable's suggestion and the forecast for every option.
+3. Pick **Storm drill · you decide** from the scenario menu. At 11:00 PortTable asks whether to declare lifeline mode; at 1 PM whether to swap the insulin ship into a sheltered berth (insulin and dialysis on time, but baby formula late). Press **S** to jump to each decision, or **B** to jump straight to the four-stories box at 5:20 PM (PortTable makes the earlier calls). Each card shows PortTable's suggestion and the forecast for every option.
 4. Play to the end for the shift report.
 
-Controls: drag to orbit, scroll to zoom, click ships, cranes, the yard, the gate, trucks or buildings. Keys: `Space` play, `T` Today ↔ PortTable, `S` jump to the storm, `←`/`→` step 10 minutes, `Esc` clear selection.
+Controls: drag to orbit, scroll to zoom, click ships, cranes, the yard, the gate, trucks or buildings. Keys: `Space` play, `T` Today ↔ PortTable, `S` jump to the storm (in the drill: next decision), `B` jump to the four-stories box, `←`/`→` step 10 minutes, `Esc` clear selection.
 
 ## One box, four stories
 

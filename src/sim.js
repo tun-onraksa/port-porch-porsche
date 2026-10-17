@@ -122,10 +122,11 @@ STORIES.forEach((t, i) => {
   BOXES[x].story = i; t.box = x;
   t.conflicts = SOURCES.filter(k => t.says[k][1]).length;
 });
-const EXAM_FAST = 4, EXAM_NORMAL = 24, REWEIGH = 3, LANE_BLOCK = 6, FREE_TIME = 9, CHARGE = 25, GATE_HOLD = 12;
+// detention: a truck that waits past 2 free hours is billed about $75 an hour (12.5 per 10-minute step)
+const EXAM_FAST = 9, EXAM_NORMAL = 24, REWEIGH = 3, LANE_BLOCK = 6, FREE_TIME = 12, CHARGE = 12.5, GATE_HOLD = 12;
 // what the terminal planner can do with a flagged box (release is shown but blocked while customs holds it)
 const STORY_OPTIONS = {
-  separate: 'Separate it: exception bay, plug it in, priority customs exam',
+  separate: 'Separate it: exception bay, plug it in, request the customs perishables exam',
   'hold-box': 'Hold this box in the yard until customs reaches it',
   'hold-gate': 'Hold the whole gate until it is sorted out',
   release: "Release it on the carrier's word",

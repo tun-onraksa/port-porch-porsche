@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const TIER_COL = { medical: '#e5484d', food: '#2fa866', energy: '#f0a020', industry: '#8b5cf6', general: '#c9a77c' };
 const AUTO_PLAN = { kind: 'porttable', order: ['medical', 'energy', 'food', 'industry'], dig: 1 };
-const money = n => '$' + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : Math.round(n / 1000) + 'k');
+const money = n => '$' + (n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'k' : Math.round(n));
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const PRESTORM = stepOf('13:30');
 const ORD_ID = k => 'ORD-' + String(k + 1).padStart(2, '0');
@@ -88,6 +88,8 @@ const storyOf = p => STORIES[+p.id.split(':')[1]];
 const optionsFor = p => isStory(p) ? ['separate', 'hold-box', 'hold-gate'] : ['approve', 'reject'];
 const CHOICE_LABEL = { approve: 'Approved', reject: 'Rejected', separate: 'Separated', 'hold-box': 'Held the box', 'hold-gate': 'Held the gate' };
 const NUM_WORD = ['', 'One', 'Two', 'Three', 'Four'];
+const SRC_SHORT = { carrier: 'Manifest', scale: 'Scale', customs: 'Customs', reefer: 'Reefer' };
+const OPTION_SHORT = { separate: 'Separate it, plug it in', 'hold-box': 'Hold just this box', 'hold-gate': 'Hold the whole gate', release: "Release on the carrier's word" };
 function rebuildDrill() { const d = runs[DRILL]; runs[DRILL] = buildRun(d.name, d.code, d.color, d.plan, d.sub); }
 // the autopilot is PortTable on its own: it takes its own suggestion at every decision point
 function autopilotRun() {
@@ -97,7 +99,8 @@ function autopilotRun() {
     const p = r.points.filter(x => !(x.id in plan.decisions)).sort((a, b) => a.s - b.s)[0];
     if (!p) break;
     const mk = c => buildRun('', '', '', { ...plan, decisions: { ...plan.decisions, [p.id]: c } }, '');
-    plan.decisions[p.id] = utilOf(mk('approve')) >= utilOf(mk('reject')) ? 'approve' : 'reject';
+    const opts = optionsFor(p), scored = opts.map(c => [c, utilOf(mk(c))]);
+    plan.decisions[p.id] = scored.reduce((a, b) => b[1] > a[1] ? b : a)[0];
   }
   return buildRun('PortTable autopilot', 'PT', '#2457f5', plan, 'Takes every PortTable suggestion on its own');
 }
@@ -173,7 +176,9 @@ function recReason(ev) {
   }
   const X = ev.rec === 'approve' ? ev.A : ev.B, Y = ev.rec === 'approve' ? ev.B : ev.A;
   const gains = onSetOf(X).filter(k => !onSetOf(Y).includes(k)).map(k => ORDERS[k].what);
-  return gains.length ? `It gets ${gains.length === 1 ? gains[0] : gains.slice(0, -1).join(', ') + ' and ' + gains[gains.length - 1]} out on time.` : 'Both options deliver the same lifeline orders on time; this one moves more cargo overall.';
+  const losses = onSetOf(Y).filter(k => !onSetOf(X).includes(k)).map(k => ORDERS[k].what);
+  const join = a => a.length === 1 ? a[0] : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  return gains.length ? `It gets ${join(gains)} out on time${losses.length ? `, but ${join(losses)} arrives late` : ''}.` : 'Both options deliver the same lifeline orders on time; this one moves more cargo overall.';
 }
 function decideNow(choice, how) {
   const ev = pending; if (!ev) return;
@@ -183,7 +188,11 @@ function decideNow(choice, how) {
   decisionLog.push({ id: ev.p.id, s: ev.p.s, choice, how, rec: ev.rec, title: shortTitle(ev.p), onL: onSetOf(X).length, lines });
   pending = null; rebuildDrill(); snap = true;
   if (focus.type === 'decision') focus = { type: 'port' };
-  if (how === 'human') {
+  if (how === 'human' && isStory(ev.p)) {
+    const t = storyOf(ev.p), X2 = runs[DRILL], held = X2.frames.filter(f => f.gateHold).length;
+    notice(`${CHOICE_LABEL[choice]}: ${t.code}`, choice === 'separate' ? `Reefer plugged in at the exception bay · no gate lane stopped · ${money(t.value)} of ${t.contents.split(',')[0].toLowerCase()} saved` : choice === 'hold-gate' ? `Every gate lane closed for ${held * STEP_MIN / 60} h · the reefer stays unplugged` : 'Lanes keep moving, but the reefer stays unplugged while it waits for customs', choice === 'separate' ? 'blue' : '');
+    flyTo(HOME.pos.clone(), HOME.tgt.clone());
+  } else if (how === 'human') {
     notice(`${CHOICE_LABEL[choice]}: ${shortTitle(ev.p)}`, `Forecast ${before}/${LIFELINE.length} → ${runs[DRILL].onL}/${LIFELINE.length} lifeline orders on time${runs[DRILL].medLate ? ` · ${runs[DRILL].medLate} medical late` : ''}`, choice === 'approve' ? 'blue' : '');
     flyTo(HOME.pos.clone(), HOME.tgt.clone());
   }
@@ -200,10 +209,10 @@ function checkDrill() {
   frameF = p.s;
   const ev = evaluate(p);
   pending = ev; resumeAfter = playing || resumeAfter;
-  if (!ev.material || delegated) { decideNow(ev.rec, ev.material ? 'delegated' : 'auto'); return; }
+  if (!ev.material || (delegated && !isStory(p))) { decideNow(ev.rec, ev.material ? 'delegated' : 'auto'); return; }
   playing = false; updatePlay(); tick(true);
   focus = { type: 'decision' }; renderInspector(curStep); showDecBar();
-  const pos = ev.p.id === 'mode' ? null : isStory(ev.p) ? BAY.clone() : ev.p.id.startsWith('swap') ? shipPos(+ev.p.id.split(':')[1]) : new THREE.Vector3(-28, 0, wz(BERTH_Y[ev.p.info.berth]));
+  const pos = ev.p.id === 'mode' ? null : isStory(ev.p) ? HELD_POS.clone() : ev.p.id.startsWith('swap') ? shipPos(+ev.p.id.split(':')[1]) : new THREE.Vector3(-28, 0, wz(BERTH_Y[ev.p.info.berth]));
   if (pos) flyFocus(pos, 48); else flyTo(HOME.pos.clone(), HOME.tgt.clone());
 }
 function showDecBar() {
@@ -225,6 +234,17 @@ function notice(title, text, cls = '') {
   clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { $('notice').hidden = true; }, 4500);
 }
 function nextDecisionJump() { const p = nextPending(); if (p) { frameF = p.s; snap = true; tick(true); } }
+function jumpToBox() {
+  if (sel !== DRILL) selectRun(DRILL, false);
+  notice('Jumped to 5:20 PM', 'PortTable made the earlier storm calls (see the Decisions tab). The four-stories box is yours.', 'blue');
+  pending = null;
+  for (let i = 0; i < 20; i++) {
+    const p = nextPending(); if (!p) break;
+    if (isStory(p) && storyOf(p).conflicts >= 3) { frameF = p.s; snap = true; resumeAfter = false; playing = false; updatePlay(); tick(true); checkDrill(); return; }
+    const ev = evaluate(p); pending = ev; resumeAfter = false; frameF = p.s;
+    decideNow(ev.rec, 'delegated');
+  }
+}
 function restartDrill() {
   runs[DRILL].plan.decisions = {}; decisionLog = []; delegated = false; pending = null; resumeAfter = false;
   rebuildDrill(); frameF = MODE_S - 3; snap = true; playing = false; updatePlay(); reportShownFor.clear();
@@ -343,6 +363,7 @@ const LANE_Z = [-6.8, -3.4, 0, 3.4, 6.8];
 const laneLights = LANE_Z.map(z => { const m = new THREE.Mesh(new THREE.SphereGeometry(.45, 12, 10), new THREE.MeshBasicMaterial({ color: 0x1f8f4e })); m.position.set(wx(GATE.x) - 3.9, 4.6, z); scene.add(m); return m; });
 // exception bay: flagged boxes wait here, plugged in, without touching a gate lane
 const BAY = new THREE.Vector3(wx(505), 0, wz(500));
+const HELD_POS = new THREE.Vector3(wx(YARD.x + YARD.w) - 1.8, 0, wz(GATE.y) + 6);
 (function () {
   const g = new THREE.Group(); g.position.copy(BAY); scene.add(g);
   box(9, .18, 8, M(0xfff1d3), 0, .09, 0, g, false);
@@ -656,15 +677,20 @@ function update3D(T, dt) {
     m.material.color.set(blocked === 'ok' ? 0x1f8f4e : blocked === 'flood' ? 0x8a93a7 : 0xe5484d);
   });
   let bayN = 0, laneN = 0, heldN = 0;
+  const boxEase = snap ? 1 : 1 - Math.pow(.05, dt);
   excTagsOn = [];
   STORIES.forEach((t, i) => {
     const o = excObjs[i], st = f.exc[i], c = plugCables[i];
     o.visible = ['bay', 'lane', 'held', 'yard', 'spoiled'].includes(st) && t.conflicts >= 2 && !(st === 'yard' && run.plan.kind !== 'today');
     c.visible = false;
     if (!o.visible) return;
-    if (st === 'bay') { o.position.set(BAY.x - 2.6 + (bayN % 3) * 2.6, .8, BAY.z + 1.2); bayN++; if (t.reefer && run.exc[i].plugged) { c.visible = true; c.position.set(o.position.x, .35, BAY.z + 2.4); } }
-    else if (st === 'lane') { o.position.set(wx(GATE.x) - 1.5, .8, LANE_Z[laneN]); laneN++; }
-    else { o.position.set(wx(YARD.x + YARD.w) - 1.8, .8 + heldN * 1.2, wz(GATE.y) + 6); heldN++; }
+    const tgt = new THREE.Vector3();
+    if (st === 'bay') { tgt.set(BAY.x - 2.6 + (bayN % 3) * 2.6, .8, BAY.z + 1.2); bayN++; }
+    else if (st === 'lane') { tgt.set(wx(GATE.x) - 1.5, .8, LANE_Z[laneN]); laneN++; }
+    else { tgt.copy(HELD_POS).setY(.8 + heldN * 1.2); heldN++; }
+    if (!o.userData.seen) { o.position.copy(tgt); o.userData.seen = true; }
+    o.position.lerp(tgt, boxEase);
+    if (st === 'bay' && t.reefer && run.exc[i].plugged && o.position.distanceTo(tgt) < .3) { c.visible = true; c.position.set(o.position.x, .35, BAY.z + 2.4); c.material.emissiveIntensity = .5 + Math.sin(T * 4) * .3; }
     o.material.color.set(st === 'spoiled' ? 0x9aa3b5 : t.reefer ? 0xf4f6fb : 0xd9b48a);
     excTagsOn.push([i, st]);
   });
@@ -684,7 +710,8 @@ function update3D(T, dt) {
     tg.p.copy(o.position).setY(o.position.y + 1.6);
     const left = t.reefer && !run.exc[i].plugged ? run.exc[i].at + t.spoil - s : null;
     const sub = st === 'bay' ? (t.reefer ? 'exception bay · plugged in' : 'exception bay') : st === 'lane' ? 'blocking a gate lane' : st === 'spoiled' ? 'spoiled' : left !== null && left > 0 ? `unplugged · spoils in ${Math.floor(left / 6)}h ${left % 6 * 10}m` : 'held for customs';
-    setTag(tg, `${t.code.slice(0, 11)} · ${t.conflicts} stories<small>${sub}</small>`, st === 'bay' ? 'gold' : 'red');
+    const badges = SOURCES.map(k => `<i class="src ${t.says[k][1] ? 'cf' : ''}">${SRC_SHORT[k]}${t.says[k][1] ? ' !' : ''}</i>`).join('');
+    setTag(tg, `${t.code.slice(0, 11)} · ${t.conflicts} stories<small>${sub}</small><span class="srcs">${badges}</span>`, st === 'bay' ? 'gold' : 'red');
     tg.el.style.display = '';
   });
   setTag(tags.anchor, `Anchorage<small>${f.anchor.length} waiting</small>`);
@@ -850,18 +877,23 @@ function renderInspector(s) {
       ${sel === DRILL ? '<div class="btnrow"><button class="btn" data-act="restart">Restart the drill</button></div>' : '<div class="btnrow"><button class="btn primary" data-act="drill">Run the storm drill yourself</button></div>'}`;
   } else if (focus.type === 'decision' && pending && isStory(pending.p)) {
     const ev = pending, i = +ev.p.id.split(':')[1], t = STORIES[i];
-    const card = c => {
-      const X = ev.runs[c], rec = ev.rec === c;
-      return `<div class="opt ${rec ? 'rec' : ''}"><div class="opt-h"><b>${STORY_OPTIONS[c]}</b>${rec ? chip('blue', 'Suggested') : ''}</div>
-        <div class="opt-n">${onSetOf(X).length}/${LIFELINE.length} lifeline on time · waiting charges ${money(X.charges)}${X.medLate ? ` · <span class="down">${X.medLate} medical late</span>` : ''}</div>
-        <ul class="opt-l">${storyLines(ev, c).map(([c2, tx]) => `<li class="${c2}">${tx}</li>`).join('')}</ul>
-        <button class="btn ${rec ? 'primary' : ''}" data-choose="${c}" style="width:100%;margin-top:8px">${rec ? 'Choose (suggested)' : 'Choose'}</button></div>`;
+    const row = c => {
+      const X = ev.runs[c], fate = boxFate(X, i), hold = X.frames.filter(f => f.gateHold).length * STEP_MIN / 60, rec = ev.rec === c;
+      return `<tr class="${rec ? 'rec' : ''}"><td><b>${OPTION_SHORT[c]}</b>${rec ? '<small class="up">PortTable suggests this</small>' : ''}<button class="btn ${rec ? 'primary' : ''}" data-choose="${c}">Choose</button></td><td>${onSetOf(X).length}/${LIFELINE.length}${X.medLate ? `<small class="down">${X.medLate} med. late</small>` : ''}</td><td class="${fate[0] === 'bad' ? 'down' : 'up'}">${X.exc[i].state === 'spoiled' ? 'Spoils' : 'Saved'}</td><td>${hold ? `<span class="down">shut ${hold} h</span>` : 'open'}</td><td>${money(X.charges)}</td></tr>`;
     };
-    h = head('box', 'Decision · ' + clockOf(ev.p.s) + ' · terminal planner', `${NUM_WORD[t.conflicts]} stories, one box`, t.code + ' · off ' + SHIPS[t.ship].name, false) +
-      storyTable(t) + storyRead(t) +
-      `<p class="hint">PortTable ran the rest of the shift for each option, assuming the forecast holds.</p>
-      ${ev.opts.map(card).join('')}
-      <div class="opt off"><div class="opt-h"><b>${STORY_OPTIONS.release}</b>${chip('gray', 'Blocked')}</div><div class="opt-n">${t.hold ? 'Customs has a hold on it. Only customs can release it; overriding the hold would be illegal.' : 'The carrier\'s weight is wrong by more than the legal margin; it must be re-weighed first.'}</div></div>`;
+    h = head('box', 'Decision · ' + clockOf(ev.p.s), `${NUM_WORD[t.conflicts]} stories, one box`, `${t.code} · off ${SHIPS[t.ship].name} · terminal planner`, false) +
+      `<ul class="verbs">
+        <li><b>Trust</b>the scale and the reefer plug (measured today), and the customs hold. Not the carrier's "empty".</li>
+        <li><b>Can't wait</b>this box. Unplugged, the reefer spoils in ${t.spoil * STEP_MIN / 60} h.</li>
+        <li><b>Reroute</b>it to the exception bay and plug it in, so it never reaches a gate lane.</li>
+        <li><b>Inspect</b>it: ask customs for its perishables exam slot.</li>
+        <li><b>Slow</b>nothing else. The other boxes keep the open lanes.</li>
+        <li><b>Release</b>only when customs clears it. Never on the carrier's word.</li>
+      </ul>
+      <table class="cmp"><thead><tr><th>Option</th><th>Lifeline</th><th>Reefer</th><th>Gate</th><th>Detention</th></tr></thead><tbody>${ev.opts.map(row).join('')}
+      <tr class="off"><td><b>${OPTION_SHORT.release}</b>${chip('gray', 'Blocked')}</td><td colspan="4">Customs has a hold on it. Only customs can lift it.</td></tr></tbody></table>
+      <p class="hint">Forecasts assume the storm forecast holds. Detention: trucks waiting past 2 free hours, $75 an hour each.</p>
+      <div class="sec">What each source says</div>${storyTable(t)}`;
   } else if (focus.type === 'box') {
     const i = focus.i, t = STORIES[i], st = f.exc[i], e = run.exc[i];
     h = head('box', t.conflicts >= 2 ? `Flagged · ${t.conflicts} stories disagree` : 'Single flag · routine', t.code, `Off ${SHIPS[t.ship].name} · to ${t.dest}`) +
@@ -960,9 +992,9 @@ function renderKPIs(s) {
   const d = onNow - onToday;
   const kpi = (icon, lb, v, delta, sub) => `<div class="kpi card"><div class="ico">${icon}</div><div><div class="lb">${lb}</div><div class="v">${v}${delta}</div><div class="s">${sub}</div></div></div>`;
   $('kpis').innerHTML =
-    kpi(ICON.dest, 'Lifeline orders on time', `${onNow}/${LIFELINE.length}`, sel !== TODAY && d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs today</span>` : '', (late ? `<span class="down">${late} late so far</span>` : 'none late so far') + ` · result ${run.onL}/${LIFELINE.length}`) +
+    kpi(ICON.dest, 'Lifeline orders on time', `${onNow}/${LIFELINE.length}`, sel !== TODAY && d ? `<span class="d ${d > 0 ? 'up' : 'down'}">${d > 0 ? '▲' : '▼'} ${Math.abs(d)} vs today</span>` : '', (late ? `<span class="down">${late} late so far</span>` : 'none late so far') + ` · ${sel === DRILL ? 'forecast' : 'result'} ${runs[sel].onL}/${LIFELINE.length}`) +
     kpi(ICON.ship, 'Lifeline boxes still in port', LIFELINE.filter(k => ['anchor', 'berth', 'yard'].includes(f.orderWhere[k])).reduce((a, k) => a + ORDERS[k].n, 0), '', `${f.anchor.length} ships waiting · ${inStorm(s) ? 2 : 4} of 4 berths open`) +
-    kpi(ICON.gate, 'Waiting charges', money(f.charges), '', `${lanesOpen(run, f)} of 5 gate lanes moving · yard wait ~${f.waitMin} min`);
+    kpi(ICON.gate, 'Truck detention', money(f.charges), '', `${lanesOpen(run, f)} of 5 gate lanes moving · yard wait ~${f.waitMin} min`);
 }
 function renderTimeline(s) {
   const run = view(), f = run.frames[s], k = tlOrder, o = ORDERS[k], st = run.stages[k], status = orderStatus(k, f, s);
@@ -985,7 +1017,7 @@ $('timeline').addEventListener('click', e => {
 });
 function renderOps(s) {
   const run = view(), f = run.frames[s], storm = inStorm(s), smart = run.plan.kind === 'porttable';
-  const tabs = { berths: `Berths ${f.berth.filter(x => x >= 0).length}/4`, orders: `Orders ${LIFELINE.length}`, ships: `Ships ${f.anchor.length}`, exc: `Exceptions ${STORIES.filter((t, i) => t.conflicts >= 2 && !['ship'].includes(f.exc[i])).length}`, log: `Decisions ${decisionLog.length}` };
+  const tabs = { berths: `Berths ${f.berth.filter(x => x >= 0).length}/4`, orders: `Orders ${LIFELINE.length}`, ships: `Ships ${f.anchor.length}`, exc: `Flagged ${STORIES.filter((t, i) => t.conflicts >= 2 && f.exc[i] !== 'ship').length}`, log: `Decisions ${decisionLog.length}` };
   document.querySelectorAll('#tabs [data-tab]').forEach(b => { b.textContent = tabs[b.dataset.tab]; b.setAttribute('aria-selected', String(b.dataset.tab === tab)); });
   let rows = '';
   const chev = '<span class="c">›</span>';
@@ -1010,7 +1042,7 @@ function renderOps(s) {
     const urg = i => { const t = STORIES[i], e = run.exc[i]; return t.reefer && !e.plugged && !['delivered', 'spoiled', 'road', 'ship'].includes(f.exc[i]) ? e.at + t.spoil - s : 999 + (4 - t.conflicts); };
     const list = STORIES.map((t, i) => i).filter(i => f.exc[i] !== 'ship').sort((a, b) => urg(a) - urg(b));
     rows = list.map(i => { const t = STORIES[i];
-      return `<li data-sel="box:${i}" class="${focus.type === 'box' && focus.i === i ? 'sel' : ''}"><span class="k">${t.code.slice(0, 11)}<small>${t.conflicts >= 2 ? t.conflicts + ' stories' : '1 flag'}</small></span><span class="d">${t.conflicts >= 2 ? SOURCES.filter(k => t.says[k][1]).map(k => SOURCE_NAME[k].split(' ')[0]).join(' · ') : 'Routine, normal flow'}</span>${boxChip(i, f, s, run).split('</span>')[0] + '</span>'}<span class="m">${t.reefer ? 'reefer' : ''}</span><span class="c">›</span></li>`; }).join('')
+      return `<li data-sel="box:${i}" class="${focus.type === 'box' && focus.i === i ? 'sel' : ''}"><span class="k">${t.code.slice(0, 11)}<small>${t.conflicts >= 2 ? t.conflicts + ' stories' : '1 flag'}</small></span><span class="d">${SOURCES.map(k => `<i class="dot ${t.says[k][1] ? 'cf' : ''}" title="${SOURCE_NAME[k]}: ${t.says[k][0]}"></i>`).join('')} ${t.conflicts >= 2 ? '' : '<span class="muted">routine</span>'}</span>${boxChip(i, f, s, run).split('</span>')[0] + '</span>'}<span class="m">${t.reefer ? 'reefer' : ''}</span><span class="c">›</span></li>`; }).join('')
       || '<li style="cursor:default"><span class="muted" style="grid-column:1/-1">No flagged boxes have come off a ship yet. The first arrives around 1 PM.</span></li>';
   }
   if (tab === 'log') {
@@ -1033,7 +1065,7 @@ function renderSite() {
   $('siteName').textContent = r.name;
   $('siteSub').textContent = (sel === DRILL ? 'Forecast: ' : 'Shift result: ') + `${r.onL}/${LIFELINE.length} lifeline on time · ${r.medLate ? r.medLate + ' medical late' : 'no medical late'}`;
   $('siteMenu').innerHTML = runs.map((x, i) => `<button data-run="${i}" aria-current="${i === sel}"><span class="code" style="background:${x.color};width:34px;height:30px;border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:11.5px;flex:none">${x.code}</span><span class="grow"><b>${x.name}</b><span class="muted" style="display:block;font-size:11.5px">${x.sub}</span><span class="bar"><i style="width:${x.onL / LIFELINE.length * 100}%;background:${x.medLate ? 'var(--amber)' : 'var(--green)'}"></i></span></span><span class="pct">${x.onL}/${LIFELINE.length}</span></button>`).join('') +
-    '';
+    `<hr><button data-run="box"><span class="code" style="background:#fff1d3;color:var(--amber);width:34px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none;font-weight:800">4</span><span class="grow"><b>Jump to the four-stories box</b><span class="muted" style="display:block;font-size:11.5px">Storm drill at 5:20 PM. PortTable makes the earlier calls; the box is yours. Key B.</span></span></button>`;
 }
 const menu = $('siteMenu');
 $('siteBtn').addEventListener('click', () => { menu.hidden = !menu.hidden; $('siteBtn').setAttribute('aria-expanded', String(!menu.hidden)); });
@@ -1041,7 +1073,7 @@ document.addEventListener('click', e => { if (!menu.hidden && !e.target.closest(
 menu.addEventListener('click', e => {
   const b = e.target.closest('[data-run]'); if (!b) return;
   menu.hidden = true; $('siteBtn').setAttribute('aria-expanded', 'false');
-  selectRun(+b.dataset.run, false);
+  if (b.dataset.run === 'box') jumpToBox(); else selectRun(+b.dataset.run, false);
 });
 
 function renderPanels(s) { renderKPIs(s); renderInspector(s); renderTimeline(s); renderOps(s); }
@@ -1068,7 +1100,7 @@ function showReport() {
   const t = runs[TODAY], l1 = runs[1], a = runs[AUTO];
   const n = x => `${x} more lifeline order${x === 1 ? '' : 's'}`;
   $('repNote').textContent = `Same storm, same ships. On a normal day, booked slots cut the average yard wait before the storm from ${t.life1WaitMin} to ${l1.life1WaitMin} minutes (Life 1). When the storm forecast arrives, lifeline mode gets ${n(a.onL - l1.onL)} out on time and no medical order arrives late (Life 2).` +
-    (played ? ` In the drill you made ${decisionLog.filter(e => e.how === 'human').length} calls and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}; your shift ended ${runs[DRILL].onL}/${LIFELINE.length}.` : '');
+    (played ? ` In the drill you made ${(n => n + ' call' + (n === 1 ? '' : 's'))(decisionLog.filter(e => e.how === 'human').length)} and followed PortTable's suggestion on ${decisionLog.filter(e => e.how === 'human' && e.choice === e.rec).length}; your shift ended ${runs[DRILL].onL}/${LIFELINE.length}.` : '');
   $('reportModal').hidden = false; $('repClose').focus();
 }
 
@@ -1140,6 +1172,7 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ' && !e.target.closest('button')) { e.preventDefault(); togglePlay(); }
   else if (e.key === 't' || e.key === 'T') swapRuns();
   else if (e.key === 's' || e.key === 'S') jumpStorm();
+  else if (e.key === 'b' || e.key === 'B') jumpToBox();
   else if (e.key === 'ArrowRight' && !e.target.closest('input')) stepBy(1);
   else if (e.key === 'ArrowLeft' && !e.target.closest('input')) stepBy(-1);
   else if (e.key === 'Escape') { menu.hidden = true; select({ type: 'port' }, false); }
