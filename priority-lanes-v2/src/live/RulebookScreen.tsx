@@ -98,7 +98,7 @@ export function RulebookScreen({ terminalIntegration = false }: { terminalIntegr
         </div>
 
         <div className="grid content-start gap-4">
-          <Panel title="Which box can’t wait, under these rules" sub={`Top 12 of ${app.evals.length} boxes. ${moved} boxes rank differently from the default rules.`} right={<SimTag>Simulated boxes</SimTag>} bodyClass="p-0">
+          <Panel className="rulebook-ranking" title="Which box can’t wait, under these rules" sub={`Top 12 of ${app.evals.length} boxes. ${moved} boxes rank differently from the default rules.`} right={<SimTag>Simulated boxes</SimTag>} bodyClass="p-0">
             <ol className="divide-y divide-line">
               {top.map((e, i) => {
                 const b = baseline.get(e.box.id)

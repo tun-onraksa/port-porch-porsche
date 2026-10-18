@@ -70,12 +70,7 @@ export const PRESETS: Record<string, Rulebook> = {
     note: 'Illustrative. A terminal whose contracts weigh charges more than cargo class: class points flatten and charges rise, so cost and deadlines drive the order.',
     categoryPoints: { medical: 18, relief_supplies: 14, perishable_food: 18, critical_industrial: 16, general: 10 },
     rates: { ...DEFAULT_RATES, demurrageEarly: 250, demurrageLate: 450, truckHour: 120 } },
-  tianjin: { id: 'tianjin', name: 'Tianjin (illustrative)', illustrative: true, dataSource: 'Port community system (adapter needed)',
-    note: 'Illustrative placeholders, not sourced: the same engine under a different tariff and gate. Replace with the terminal’s own numbers.',
-    categoryPoints: { ...DEFAULT_CATS }, rates: { ...DEFAULT_RATES, demurrageEarly: 90, demurrageLate: 180, storage: 40, truckHour: 40, laneThroughput: 18 } },
-  rotterdam: { id: 'rotterdam', name: 'Rotterdam (illustrative)', illustrative: true, dataSource: 'Port community system (adapter needed)',
-    note: 'Illustrative placeholders, not sourced. Replace with the terminal’s own tariff.',
-    categoryPoints: { ...DEFAULT_CATS }, rates: { ...DEFAULT_RATES, demurrageEarly: 140, demurrageLate: 280, storage: 60, truckHour: 80, laneThroughput: 14 } },
+
 }
 
 // ---------------------------------------------------------------- store
