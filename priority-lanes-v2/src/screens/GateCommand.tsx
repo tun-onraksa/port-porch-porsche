@@ -1,23 +1,23 @@
-import { useMemo, useState } from 'react'
+import { Check,CircleCheck,Gauge,OctagonAlert,PowerOff,RotateCcw,Search,Truck,Undo2 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Boxes, Check, CircleCheck, DollarSign, Gauge, OctagonAlert, PowerOff, RotateCcw, Search, Snowflake, Truck, Undo2 } from 'lucide-react'
-import { useApp } from '../state.tsx'
-import type { Approval } from '../state.tsx'
-import type { Evaluation } from '../engine/types.ts'
-import type { SimResult } from '../engine/simulate.ts'
-import { LANES, backgroundPerHour, laneDown, openLanes } from '../engine/context.ts'
-import { HOUR, fmtTime } from '../engine/time.ts'
-import { RATES, usd, usdFull } from '../engine/rates.ts'
-import { ACTIONS, actionLabel } from '../engine/actions.ts'
+import { useMemo,useState } from 'react'
 import { HERO_ID } from '../data/scenario.ts'
-import { ActionChip, Btn, CargoIcon, Countdown, cx, HoldChips, Kpi, Panel, RealTag, ReeferCell, SampleTag, SeverityBadge, SimTag, T49Urgency, UrgencyPill } from '../ui/primitives.tsx'
-import { ScreenHeader, StageStrip } from '../ui/layout.tsx'
+import { actionLabel } from '../engine/actions.ts'
+import { LANES,backgroundPerHour,laneDown,openLanes } from '../engine/context.ts'
+import { RATES,usd,usdFull } from '../engine/rates.ts'
+import type { SimResult } from '../engine/simulate.ts'
+import { HOUR,fmtTime } from '../engine/time.ts'
+import type { Evaluation } from '../engine/types.ts'
+import type { Approval } from '../state.tsx'
+import { useApp } from '../state.tsx'
+import { ScreenHeader } from '../ui/layout.tsx'
+import { ActionChip,Btn,CargoIcon,Countdown,Disclosure,HoldChips,Kpi,Panel,RealTag,SeverityBadge,UrgencyPill,cx } from '../ui/primitives.tsx'
 
 type Filter = 'all' | 'attention' | 'blocked' | 'reefer' | 'real'
 
 export function GateCommand() {
   const app = useApp()
-  const { evals, ctx, mode } = app
+  const { evals, ctx } = app
   const now = ctx.now
   const queued = evals.filter((e) => e.box.gate.truck_arrived_at)
   const open = openLanes(ctx, now)
@@ -26,26 +26,28 @@ export function GateCommand() {
   const capNow = open.length * perLane
   const nextHour = evals.filter((e) => e.truckArrive !== null && e.truckArrive > now && e.truckArrive <= now + HOUR).length
   const demand = queued.length + nextHour + backgroundPerHour(now,ctx)
-  const charges = evals.reduce((s, e) => s + e.dailyCharges, 0)
-  const pastDue = evals.filter((e) => e.dailyCharges > 0).length
+
+
   const critical = evals.filter((e) => e.severity === 'critical')
-  const reefers = evals.filter((e) => e.reefer)
-  const reeferAlarm = reefers.filter((e) => e.reefer!.alarm || e.reefer!.dev > 2)
-  const releasable = evals.filter((e) => e.rec.releasable).length
-  const outage = ctx.outages[0]
+
+
+
+
 
   return (
     <div>
       <ScreenHeader
-        title="Gate Command"
-        kicker={<><span>Screen 1</span><SimTag>Simulated · Thu Oct 29, 07:30</SimTag>{mode === 'ordinary' && <span className="rounded bg-good/15 px-1.5 text-[11px] font-semibold text-good">Ordinary day</span>}</>}
-        sub={ctx.resourcePlan ? `Planning with ${configured} configured gate lanes and ${ctx.resourcePlan.workers} workers from your PortTable plan. The 07:30 cargo snapshot and appointments are simulated.` : mode === 'ordinary'
-          ? 'An ordinary morning: all 8 lanes open. The same engine still clears up conflicts, warns on deadlines and watches reefers.'
-          : `${outage ? `${outage.reason} took lanes ${outage.lanes[0]}–${outage.lanes[outage.lanes.length - 1]} down until ${fmtTime(outage.end)}. ` : ''}${queued.length} trucks are queued. One suspicious box gets inspected; the other ${evals.length - 1} keep moving.`}
-      />
-      <StageStrip active="gate" />
+        title="Gate command"
 
-      {/* lanes */}
+
+      />
+      <div className="quiet-metrics mb-4">
+        <Kpi icon={Truck} label="Queued" value={queued.length}/>
+        <Kpi icon={Gauge} label="Capacity / demand" value={`${capNow} / ${demand}`} sub="trucks per hour"/>
+        <Kpi icon={OctagonAlert} label="Critical conflicts" value={critical.length} onClick={()=>app.go('box',critical[0]?.box.id??HERO_ID)}/>
+      </div>
+      <BluntVsGentle />
+      <Disclosure title={`Gate lanes · ${open.length} of ${configured} open`}>
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8" role="list" aria-label="Gate lanes">
         {LANES.slice(0,configured).map((l) => {
           const down = laneDown(ctx, l.id, now)
@@ -70,50 +72,8 @@ export function GateCommand() {
         })}
       </div>
 
-      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.95fr)]">
-        <div className="grid grid-cols-2 content-start gap-3 sm:grid-cols-3">
-          <Kpi icon={Boxes} label="Boxes for today’s gate" value={evals.length} sub={`${releasable} releasable · ${evals.length - releasable} blocked or pending`} />
-          <Kpi icon={Truck} tone={queued.length > 20 ? 'warn' : undefined} label="Trucks queued" value={queued.length} sub="first arrived 06:35" />
-          <Kpi icon={Gauge} tone={demand > capNow ? 'crit' : 'good'} label="Capacity vs demand" value={<>{capNow}<span className="text-[15px] text-muted"> / {demand}</span></>} sub={`${open.length} of ${configured} lanes · trucks/hr vs next hour incl. queue`} />
-          <Kpi icon={DollarSign} tone={charges ? 'warn' : undefined} label="Charges accruing" value={`${usd(charges)}/day`} sub={`${pastDue} boxes past deadline · sample rates`} />
-          <Kpi icon={OctagonAlert} tone={critical.length ? 'crit' : 'good'} label="Critical conflicts" value={critical.length} sub={app.view === 'security' ? 'see Security view' : 'Inspection requested'} onClick={() => app.go('box', critical[0]?.box.id ?? HERO_ID)} />
-          <Kpi icon={Snowflake} tone={reeferAlarm.length ? 'warn' : 'good'} label="Reefers off setpoint" value={reeferAlarm.length} sub={`of ${reefers.length} plugged in · alarms + >2°C`} />
-          <PlanAtAGlance />
-        </div>
-        <BluntVsGentle />
-      </div>
-
+      </Disclosure>
       <Queue />
-    </div>
-  )
-}
-
-function PlanAtAGlance() {
-  const app = useApp()
-  const counts = ACTIONS.map((a) => ({ ...a, n: app.evals.filter((e) => e.rec.key === a.key).length })).filter((a) => a.n)
-  const cantWait = app.evals.filter((e) => e.rec.releasable && e.truckArrive !== null && e.truckArrive < app.ctx.dayEnd).slice(0, 4)
-  return (
-    <div className="col-span-2 rounded-xl border border-line bg-panel px-3.5 py-3 sm:col-span-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-[12px] font-medium text-muted">Plan at a glance · gentlest step per box</span>
-        <span className="text-[11.5px] text-dim">0 lane closures · 0 terminal holds</span>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {counts.map((c) => <span key={c.key} className="inline-flex items-center gap-1"><ActionChip k={c.key} size="sm" /><span className="font-mono text-[12px] text-ink">{c.n}</span></span>)}
-      </div>
-      <div className="mt-3 text-[12px] font-medium text-muted">Can’t wait: first out</div>
-      <ol className="mt-1 grid gap-1 sm:grid-cols-2">
-        {cantWait.map((e, i) => (
-          <li key={e.box.id}>
-            <button onClick={() => app.go('box', e.box.id)} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left text-[12.5px] hover:bg-panel-2">
-              <span className="font-mono text-[11px] text-dim">{i + 1}</span>
-              <CargoIcon kind={e.box.kind} />
-              <span className="min-w-0 flex-1 truncate text-ink">{e.box.cargo}</span>
-              <span className="font-mono text-[11.5px] text-ink-2">{app.full.assignments[e.box.id]?.text}</span>
-            </button>
-          </li>
-        ))}
-      </ol>
     </div>
   )
 }
@@ -156,11 +116,13 @@ function BluntVsGentle() {
 
   return (
     <Panel
-      title="Blunt move vs Priority Lanes"
-      sub={app.ctx.resourcePlan ? '07:30 gate snapshot using your approved capacity. Sample delay charges; terminal operating costs are shown separately.' : mode === 'ordinary' ? 'Without the tool: first-come-first-served, problems found at the gate.' : 'Blunt: hold every import release until lanes return at 14:00, then first-come-first-served.'}
-      right={<><SampleTag /><SimTag /></>}
+      className="mb-4" title="Gate plan"
+
+
       bodyClass="px-4 pb-4 pt-1"
     >
+      <div className="plan-outcome"><div><span>Projected delay & handling</span><strong>{usdFull(plan.total)}</strong><small>Excludes terminal operating cost</small></div><div><span>Trucks waiting over 3h</span><strong>{plan.stranded3h}</strong></div></div>
+      <Disclosure title="Compare costs & outcomes">
       <table className="w-full">
         <thead>
           <tr className="text-left text-[11px] tracking-wider text-muted uppercase">
@@ -182,19 +144,19 @@ function BluntVsGentle() {
           <Row label="Rail cutoffs missed" blunt={outcomeList(blunt.railMissed)} plan={outcomeList(plan.railMissed)} />
           <Row label="Medical / reefer / relief / rail out by 11:00" blunt={`${blunt.priority.clearedBy11} of ${blunt.priority.total}`} plan={`${plan.priority.clearedBy11} of ${plan.priority.total}`} />
         </tbody>
-      </table>
+      </table></Disclosure>
       <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
         {mode === 'drill' ? (
-          <p className="text-[12.5px] text-warn">Drill mode: the plan column shows the proposed plan. Nothing can be approved.</p>
+          <p className="text-[12.5px] text-warn">Drill · approvals disabled.</p>
         ) : fully ? (
           <>
-            <span className="flash-in inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-semibold text-good"><CircleCheck size={16} aria-hidden /> Plan approved. Notifications drafted.</span>
+            <span className="flash-in inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-semibold text-good"><CircleCheck size={16} aria-hidden /> Plan approved</span>
             <Btn size="sm" variant="quiet" onClick={app.resetApprovals}><RotateCcw size={13} aria-hidden /> Reset demo</Btn>
           </>
         ) : (
           <>
             <Btn size="lg" variant="good" onClick={app.approveAll}><Check size={17} aria-hidden /> Approve plan ({pending} actions)</Btn>
-            <span className="text-[12.5px] leading-snug text-muted">If fully approved: <span className="font-mono text-ink">{usdFull(full.total)}</span> (−{savedFull}%), {full.stranded3h} stranded. Unapproved boxes run first-come-first-served.</span>
+            <span className="text-[12.5px] leading-snug text-muted">Full approval: <span className="font-mono text-ink">{usdFull(full.total)}</span> (−{savedFull}%), {full.stranded3h} stranded. </span>
           </>
         )}
       </div>
@@ -241,13 +203,13 @@ function Queue() {
     }
     return r
   }, [evals, filter, q])
-  const visible = showAll || q || filter !== 'all' ? rows : rows.slice(0, 30)
+  const visible = showAll || q || filter !== 'all' ? rows : rows.slice(0, 12)
   const count = (f: Filter) => (f === 'all' ? evals.length : f === 'attention' ? evals.filter((e) => e.rec.key !== 'release' || e.conflicts.some((c) => c.severity !== 'minor')).length : f === 'blocked' ? evals.filter((e) => !e.rec.releasable).length : f === 'reefer' ? evals.filter((e) => e.box.equipment_type === 'reefer').length : 4)
 
   return (
     <Panel
-      title="Ranked box queue"
-      sub="Ranked by our urgency score, with Terminal49’s own urgency beside it. Click a row for the full reasoning. Grey slots are proposed; nothing happens until a person approves."
+      title="Cargo queue"
+
       bodyClass="p-0"
       right={
         <label className="relative">
@@ -266,10 +228,10 @@ function Queue() {
         ))}
       </div>
       <div className="scroll-thin overflow-x-auto">
-        <table className="w-full min-w-[1080px] text-left">
+        <table className="w-full min-w-[900px] text-left">
           <thead className="text-[10.5px] tracking-wider text-muted uppercase">
             <tr className="border-b border-line">
-              {['#', 'Container', 'Cargo', 'Urgency · T49', 'Conflict · holds', 'Deadline', 'Reefer', 'Lane / slot', 'Recommended · decision'].map((h) => (
+              {['#', 'Container', 'Cargo', 'Priority', 'Hold / conflict', 'Deadline', 'Lane / slot', 'Recommended · decision'].map((h) => (
                 <th key={h} scope="col" className="px-2.5 py-2 font-semibold whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -288,7 +250,7 @@ function Queue() {
                   <td className="px-2.5 py-2 font-mono text-[11.5px] text-dim">{rank}</td>
                   <td className="px-2.5 py-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[13px] font-semibold text-ink">{e.box.number}</span>
+                      <button onClick={()=>app.go('box',e.box.id)} className="font-mono text-[13px] font-semibold text-info">{e.box.number}</button>
                       {e.box.real && <RealTag />}
                     </div>
                     <div className="text-[11px] whitespace-nowrap text-dim" title={e.box.pod_vessel_name}>{e.box.equipment_length_ft}' {e.box.equipment_type}</div>
@@ -298,7 +260,7 @@ function Queue() {
                   </td>
                   <td className="px-2.5 py-2">
                     <UrgencyPill u={e.urgency} size="sm" />
-                    <div className="mt-0.5 flex items-center gap-1 text-[10.5px] text-dim">T49 <T49Urgency value={e.box.urgency} simulated={e.box.urgency_simulated} /></div>
+
                   </td>
                   <td className="px-2.5 py-2" title={top?.summary}>
                     <div className="flex flex-col items-start gap-1">
@@ -307,7 +269,7 @@ function Queue() {
                     </div>
                   </td>
                   <td className="px-2.5 py-2"><Countdown hours={e.hoursToDeadline} note={e.deadline?.effectiveNote} /></td>
-                  <td className="px-2.5 py-2"><ReeferCell r={e.reefer} /></td>
+
                   <td className={cx('px-2.5 py-2 font-mono text-[12px] whitespace-nowrap', a ? 'text-ink' : 'text-muted')} title={a ? 'Approved slot' : 'Proposed slot (not yet approved)'}>
                     {asg?.text ?? '—'}
                   </td>
@@ -323,7 +285,7 @@ function Queue() {
           </tbody>
         </table>
       </div>
-      {!showAll && !q && filter === 'all' && rows.length > 30 && (
+      {!showAll && !q && filter === 'all' && rows.length > 12 && (
         <div className="border-t border-line px-4 py-2.5 text-center">
           <Btn size="sm" variant="quiet" onClick={() => setShowAll(true)}>Show all {rows.length} boxes</Btn>
         </div>

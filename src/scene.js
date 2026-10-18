@@ -41,7 +41,7 @@ if (renderer) {
   controls.enableDamping = true; controls.dampingFactor = .08;
   controls.maxPolarAngle = 1.3; controls.minDistance = 18; controls.maxDistance = 190;
 } else host.innerHTML = '<div class="nogl">This 3D view needs WebGL. Try a recent Chrome, Edge, Firefox or Safari.</div>';
-const HOME = { pos: new THREE.Vector3(-42, 84, 90), tgt: new THREE.Vector3(-8, 0, -2) };
+const HOME = { pos: new THREE.Vector3(-42, 84, 90), tgt: new THREE.Vector3(-10, 1, 3) };
 camera.position.copy(HOME.pos); if (controls) controls.target.copy(HOME.tgt); else camera.lookAt(HOME.tgt);
 let camAnim = null;
 function flyTo(pos, tgt) {
@@ -308,12 +308,12 @@ function fitPort() {
  const inverse = camera.quaternion.clone().invert();
  const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
  let distance = 0;
- // Fit the working port, excluding the decorative sea/land plane edges.
- for (const x of [-88, 39]) for (const y of [0, 17]) for (const z of [-31, 38]) {
+ // Frame the active terminal closely; offshore queue and distant scenery stay outside the default view.
+ for (const x of [-43, 24]) for (const y of [0, 15]) for (const z of [-27, 33]) {
   const point = new THREE.Vector3(x,y,z).sub(target).applyQuaternion(inverse);
   distance = Math.max(distance, point.z + Math.abs(point.x)/(tan*camera.aspect), point.z + Math.abs(point.y)/tan);
  }
- camera.position.copy(target).addScaledVector(direction, distance * 1.12);
+ camera.position.copy(target).addScaledVector(direction, distance * 1.04);
  if (controls) { controls.maxDistance = Math.max(190,distance*2); controls.target.copy(target); controls.update(); }
 }
 let inspectionAsset=null,inspectionOrigin=null,inspectionDoors=0,inspectionOpen=true,inspectionRoof=true,inspectionCamera='interior',inspectionDoorMotion=null;

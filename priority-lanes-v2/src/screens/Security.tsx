@@ -1,11 +1,11 @@
-import { ArrowRight, Eye, Lock, Send, ShieldAlert, ShieldCheck } from 'lucide-react'
-import { useApp } from '../state.tsx'
-import type { Evaluation } from '../engine/types.ts'
-import { measuredWeight, tareKg } from '../engine/trust.ts'
-import { kg, lbsToKg } from '../engine/rates.ts'
+import { ArrowRight,Eye,Lock,Send,ShieldAlert,ShieldCheck } from 'lucide-react'
+import { kg,lbsToKg } from '../engine/rates.ts'
 import { fmtDay } from '../engine/time.ts'
-import { ActionChip, Btn, CargoIcon, cx, Panel, SeverityBadge, SimTag } from '../ui/primitives.tsx'
+import { measuredWeight,tareKg } from '../engine/trust.ts'
+import type { Evaluation } from '../engine/types.ts'
+import { useApp } from '../state.tsx'
 import { ScreenHeader } from '../ui/layout.tsx'
+import { ActionChip,Btn,CargoIcon,cx,Panel,SeverityBadge } from '../ui/primitives.tsx'
 
 export function Security() {
   const app = useApp()
@@ -16,15 +16,15 @@ export function Security() {
   if (app.view === 'ops') {
     return (
       <div>
-        <ScreenHeader title="Security View" kicker={<><span>Screen 6 · dual use</span><SimTag /></>} />
+        <ScreenHeader title="Security review"  />
         <Panel>
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <span className="grid size-12 place-items-center rounded-xl bg-panel-3"><Lock size={22} className="text-muted" aria-hidden /></span>
             <div className="flex-1">
-              <h2 className="text-[16px] font-semibold">Restricted to the Security role</h2>
-              <p className="mt-1 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">Operations sees these boxes only as <strong className="text-ink">“Inspection requested”</strong>. The reasoning (declared vs measured weight, reefers running while declared empty, commodity plausibility, seal mismatches) is shared with CBP and terminal security, not with the whole gate.</p>
+              <h2 className="text-[16px] font-semibold">Security evidence</h2>
+              <p className="mt-1 max-w-2xl text-[13.5px] leading-relaxed text-ink-2">Switch views to review weight, cargo and seal discrepancies. Demo role switch; no access control.</p>
             </div>
-            <Btn variant="primary" onClick={() => app.setView('security')}><ShieldAlert size={14} aria-hidden /> Switch to Security view (demo)</Btn>
+            <Btn variant="primary" onClick={() => app.setView('security')}><ShieldAlert size={14} aria-hidden /> Open security view</Btn>
           </div>
           <div className="mt-4 border-t border-line pt-3">
             <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted uppercase">What Operations sees</div>
@@ -45,9 +45,9 @@ export function Security() {
   return (
     <div>
       <ScreenHeader
-        title="Security View"
-        kicker={<><span>Screen 6 · dual use</span><SimTag /><span className="inline-flex items-center gap-1 rounded bg-crit/15 px-1.5 text-[11px] font-semibold text-ink"><ShieldAlert size={12} className="text-crit" aria-hidden /> Security role</span></>}
-        sub="One system, one dataset. The mismatch detection that keeps cargo moving also targets inspections where they matter: possible contraband, undeclared cargo, and danger to the people handling the box."
+        title="Security review"
+
+
       />
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <Stat label="Critical mismatches" value={cases.filter((c) => c.severity === 'critical').length} sub="sent to inspection" />
@@ -66,7 +66,7 @@ function Stat({ label, value, sub }: { label: string; value: number; sub: string
     <div className="rounded-xl border border-line bg-panel px-4 py-3">
       <div className="text-[12px] font-medium text-muted">{label}</div>
       <div className="font-mono text-[24px] font-semibold">{value}</div>
-      <div className="text-[12px] text-ink-2">{sub}</div>
+      <span className="sr-only">{sub}</span>
     </div>
   )
 }
@@ -100,10 +100,10 @@ function Case({ e }: { e: Evaluation }) {
   const sharedKey = `sec-${b.id}`
   const shared = app.notified[sharedKey]
   const action = critical
-    ? 'CBP exam, expedited. It’s the same box Operations is already sending to the inspection bay, so nothing else at the gate slows down.'
+    ? 'Expedite the CBP exam for this container.'
     : e.conflicts.some((c) => c.attr === 'seal')
-      ? 'Request the carrier’s re-seal record. Escalate to CBP if there’s none by 12:00. Box keeps its slot meanwhile.'
-      : 'Ask the importer to confirm the commodity; CBP notified for targeting. Box keeps moving unless the answer doesn’t fit.'
+      ? 'Request the replacement-seal record by 12:00; escalate if missing.'
+      : 'Confirm the commodity with the importer. Keep the current slot pending review.'
   return (
     <Panel className={cx(critical && 'border-crit/50')} bodyClass="p-0">
       <div className="grid gap-0 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
@@ -112,13 +112,13 @@ function Case({ e }: { e: Evaluation }) {
             <SeverityBadge s={e.severity} size="lg" />
             <CargoIcon kind={b.kind} size={17} />
             <span className="font-mono text-[18px] font-semibold">{b.number}</span>
-            <span className="text-[12.5px] text-muted">{b.pod_vessel_name} · B/L {b.bill_of_lading} · {b.shipping_line_name} · yard {b.sensors.yard_position}</span>
+            <span className="text-[12.5px] text-muted">{b.cargo} · {b.sensors.yard_position}</span>
           </div>
           <ul className="mt-3 space-y-2">
             {e.security.map((s) => (
               <li key={s.title} className="rounded-lg border border-line bg-panel-2/60 px-3 py-2">
                 <div className="flex items-center gap-2"><SeverityBadge s={s.severity} size="sm" /><span className="text-[13.5px] font-semibold text-ink">{s.title}</span></div>
-                <p className="mt-0.5 text-[13px] leading-snug text-ink-2">{s.detail}</p>
+                <details className="inline-detail"><summary>Evidence</summary><p>{s.detail}</p></details>
               </li>
             ))}
           </ul>
@@ -136,11 +136,11 @@ function Case({ e }: { e: Evaluation }) {
           <p className="text-[13px] leading-snug text-ink">{action}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {shared ? (
-              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-2"><ShieldCheck size={14} className="text-good" aria-hidden /> Shared with CBP targeting (simulated)</span>
+              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-2"><ShieldCheck size={14} className="text-good" aria-hidden /> Referral recorded · simulated</span>
             ) : (
-              <Btn size="sm" variant="primary" onClick={() => app.notify(sharedKey, `Security: ${b.number} shared with CBP targeting (simulated).`)}><Send size={13} aria-hidden /> Share with CBP targeting</Btn>
+              <Btn size="sm" variant="primary" onClick={() => app.notify(sharedKey, `Security: ${b.number} shared with CBP targeting (simulated).`)}><Send size={13} aria-hidden /> Record CBP referral</Btn>
             )}
-            <Btn size="sm" onClick={() => app.go('box', b.id)}><Eye size={13} aria-hidden /> Full four-stories view <ArrowRight size={12} aria-hidden /></Btn>
+            <Btn size="sm" onClick={() => app.go('box', b.id)}><Eye size={13} aria-hidden /> Review cargo <ArrowRight size={12} aria-hidden /></Btn>
           </div>
           <div className="mt-3 flex items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
             Operations sees: <ActionChip k={e.rec.key} size="sm" label={critical ? 'Inspection requested' : undefined} />

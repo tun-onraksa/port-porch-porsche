@@ -13,23 +13,19 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 
 // ---------------------------------------------------------------- layout
 
-export function Panel({ title, sub, right, children, className, bodyClass, id }: {
-  title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; id?: string
+export function Panel({ title, sub, right, children, className, bodyClass, id, collapsible = false }: {
+  title?: ReactNode; sub?: ReactNode; right?: ReactNode; children: ReactNode; className?: string; bodyClass?: string; id?: string; collapsible?: boolean
 }) {
-  return (
-    <section id={id} className={cx('rounded-xl border border-line bg-panel', className)}>
-      {(title || right) && (
-        <header className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line px-4 py-3">
-          <div className="min-w-0">
-            {title && <h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>}
-            {sub && <p className="mt-0.5 text-[13px] text-muted">{sub}</p>}
-          </div>
-          {right && <div className="flex flex-wrap items-center gap-2">{right}</div>}
-        </header>
-      )}
-      <div className={cx(bodyClass ?? 'p-4')}>{children}</div>
-    </section>
-  )
+ const content=<div className={cx(bodyClass ?? 'p-4')}>{sub&&<p className="panel-note">{sub}</p>}{children}</div>
+ if(collapsible)return <details id={id} className={cx('quiet-disclosure',className)}><summary>{title}</summary>{right&&<div className="px-4">{right}</div>}{content}</details>
+ return <section id={id} className={cx('quiet-panel rounded-xl border border-line bg-panel',className)}>
+  {(title||right)&&<header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"><h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>{right&&<div className="flex flex-wrap items-center gap-2">{right}</div>}</header>}
+  {content}
+ </section>
+}
+
+export function Disclosure({title,children}:{title:ReactNode;children:ReactNode}){
+ return <details className="quiet-disclosure"><summary>{title}</summary><div className="disclosure-body">{children}</div></details>
 }
 
 export function Btn({ children, onClick, variant = 'ghost', size = 'md', disabled, title, className, type = 'button' }: {
@@ -45,8 +41,8 @@ export function Btn({ children, onClick, variant = 'ghost', size = 'md', disable
   }[variant]
   const s = { sm: 'h-7 px-2.5 text-[12px] gap-1.5', md: 'h-9 px-3.5 text-[13px] gap-2', lg: 'h-11 px-5 text-[15px] gap-2' }[size]
   return (
-    <button type={type} title={title} disabled={disabled} onClick={onClick}
-      className={cx('inline-flex shrink-0 items-center justify-center rounded-lg border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40', v, s, className)}>
+    <button data-variant={variant} type={type} title={title} disabled={disabled} onClick={onClick}
+      className={cx('quiet-button inline-flex shrink-0 items-center justify-center rounded-lg border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40', v, s, className)}>
       {children}
     </button>
   )
@@ -83,7 +79,7 @@ export function SimTag({ children = 'Simulated', className }: { children?: React
     </span>
   )
 }
-export function LiveTag({ children = 'Live Terminal49 data', className }: { children?: ReactNode; className?: string }) {
+export function LiveTag({ children = 'Terminal49 snapshot', className }: { children?: ReactNode; className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-1.5 rounded border border-live/40 bg-live/10 px-1.5 py-px text-[10.5px] font-semibold tracking-wide text-live uppercase', className)}>
       <span aria-hidden className="pulse-dot size-1.5 rounded-full bg-live" />
@@ -235,7 +231,7 @@ export function Kpi({ label, value, sub, icon: Icon, tone, onClick }: {
   const color = tone ? `var(--color-${tone})` : 'var(--color-muted)'
   const Tag = onClick ? 'button' : 'div'
   return (
-    <Tag onClick={onClick} className={cx('flex min-w-0 flex-col rounded-xl border border-line bg-panel px-3.5 py-3 text-left', onClick && 'transition-colors hover:border-line-2 hover:bg-panel-2')}>
+    <Tag onClick={onClick} className={cx('quiet-kpi flex min-w-0 flex-col rounded-xl border border-line bg-panel px-3.5 py-3 text-left', onClick && 'transition-colors hover:border-line-2 hover:bg-panel-2')}>
       <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted">
         <Icon size={14} style={{ color }} aria-hidden />
         {label}

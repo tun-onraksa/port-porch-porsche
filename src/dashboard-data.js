@@ -1,0 +1,24 @@
+// Read-only reporting over the exact run used by the terminal animation.
+function buildSimulationDashboard(run,step,scenario,options={},source=[],incident={},events=[]){
+ const f=run.frames[step],end=run.frames[144],r=run.rates,p=(options.planChanges||[]).filter(c=>c.step<=step).at(-1)?.plan||f.plan;
+ const sourceMap=new Map(source.map(c=>[c.number,c]));
+ const actionAt=(number,t)=>(options.cargoActions||[]).filter(a=>a.number===number&&a.step<=t).at(-1);
+ const present=(c,t)=>c.dischargeStep!==null&&c.dischargeStep<=t&&(c.exitStep===null||c.exitStep>t);
+ const held=(c,t)=>{const a=actionAt(c.number,t);return !!sourceMap.get(c.number)?.blocked||!!a&&(['hold','inspect','close'].includes(a.key)||a.readyStep>t)||!!options.holdIds?.includes(c.number)&&t>=options.holdStart&&(options.releaseStep==null||t<options.releaseStep);};
+ const ready=(c,t)=>present(c,t)&&!held(c,t)&&(c.preDischarged||t-(c.dischargeStep-1)>=r.releaseHours*6)&&actionAt(c.number,t)?.key!=='reroute';
+ // Capacity uses the same ten-minute fractional rounding and staffing as simulate().
+ const slots=[];let credit=0;
+ for(let s=0;s<144;s++){const p=run.frames[s+1].plan;let count=0;if(s/6<p.hours){credit+=Math.min(p.gates,Math.floor(p.workers/2))*r.gateProductivity/6;count=Math.floor(credit);credit-=count;}slots.push(count);}
+ const hours=[];
+ for(let start=step;start<144;){const stop=Math.min(144,(Math.floor(start/6)+1)*6),a=run.frames[start],b=run.frames[stop];hours.push({start,end:stop,label:clockOf(start)+'–'+clockOf(stop),minutes:(stop-start)*10,capacity:slots.slice(start,stop).reduce((a,b)=>a+b,0),truck:b.truckOut-a.truckOut,rail:b.railOut-a.railOut,ready:run.containers.filter(c=>ready(c,stop)).length,yard:b.yard,held:run.containers.filter(c=>present(c,stop)&&held(c,stop)).length});start=stop;}
+ const cases=[];
+ for(const c of run.containers){if(c.exitStep!==null&&c.exitStep<=step)continue;
+  const data=sourceMap.get(c.number),a=actionAt(c.number,step),isHeld=held(c,step),signals=data?.securitySignals||[];
+  const seal=options.holdIds?.includes(c.number)&&step>=options.holdStart;
+  if(!isHeld&&!signals.length&&!(seal&&incident.status==='approved'))continue;
+  const resolved=seal&&options.releaseStep!==null&&options.releaseStep<=step;
+  cases.push({number:c.number,cargo:data?.cargo||(scenario==='stress'?'Synthetic import cargo':'Recorded container'),status:resolved?'Released':isHeld?'Held':'Review',inYard:present(c,step),reason:seal?'Door seal differs from the manifest; replacement-seal record requires verification.':data?.blocked?(data.holdReason||'Source hold blocks departure.'):a&&['hold','inspect','close'].includes(a.key)?'Approved '+a.key+' action blocks departure.':a?.readyStep>step?'Pickup deferred until '+clockOf(a.readyStep)+'.':signals.map(x=>x.title).join('; '),details:seal?[{title:'Manifest seal',detail:'OLD-'+c.number},{title:'Door seal',detail:'DEMO-'+c.number},{title:'Disposition',detail:incident.status==='approved'?(incident.disposition==='inspect'?'Inspect, then release at ':'Release at ')+clockOf(options.releaseStep):'Awaiting approval'}]:signals.map(x=>({title:x.title,detail:x.detail})),sourceBlocked:!!data?.blocked});
+ }
+ const recorded=scenario==='stress'?0:scenario==='sample'?run.total:source.filter(c=>c.real).length;
+ return {scenario,name:scenario==='sample'?'Terminal49 sample':scenario==='stress'?'Synthetic busy day':'Priority Lanes',step,time:clockOf(step),endTime:clockOf(144),total:run.total,departed:f.departed,truckOut:f.truckOut,railOut:f.railOut,yard:f.yard,onShip:f.remaining.reduce((a,b)=>a+b,0),backlog:run.backlog,cost:end.cost,elapsedCost:f.cost,plan:p,approvedPlan:run.plan,rates:r,gates:run.plan.gates,workers:run.plan.workers,hours:run.plan.hours,gateProductivity:r.gateProductivity,staffedGates:Math.min(p.gates,Math.floor(p.workers/2)),ready:run.containers.filter(c=>ready(c,step)).length,held:run.containers.filter(c=>present(c,step)&&held(c,step)).length,forecast:{hours,truck:end.truckOut-f.truckOut,rail:end.railOut-f.railOut,peakReady:Math.max(run.containers.filter(c=>ready(c,step)).length,...hours.map(h=>h.ready)),endYard:end.yard,endOnShip:end.remaining.reduce((a,b)=>a+b,0)},security:{cases,unknown:recorded,held:cases.filter(c=>c.status==='Held').length,review:cases.filter(c=>c.status==='Review').length,resolved:cases.filter(c=>c.status==='Released').length},provenance:{recorded,synthetic:run.total-recorded,preDischarged:scenario==='priority',snapshotAt:TERMINAL49.snapshotAt,records:scenario==='stress'?[]:TERMINAL49.records.map(c=>({number:c.number,vessel:c.pod_vessel_name,destination:c.port_of_discharge_name,terminal:c.pod_terminal_name,eta:c.pod_eta_at}))},events:events.filter(e=>e.scenario===scenario&&e.step<=step),incident:{active:scenario==='stress'&&incident.enabled&&incident.holdIds?.length>0,status:incident.status,holdStart:incident.holdStart,releaseStep:incident.releaseStep,disposition:incident.disposition}};
+}

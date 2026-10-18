@@ -1,18 +1,18 @@
-import { useMemo } from 'react'
-import { ArrowRight, CloudLightning, PlugZap, ServerOff, Siren, Zap } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useApp } from '../state.tsx'
+import { ArrowRight,CloudLightning,PlugZap,ServerOff,Siren,Zap } from 'lucide-react'
+import { useMemo } from 'react'
 import { BOXES } from '../data/scenario.ts'
-import { DRILLS, buildCtx } from '../engine/context.ts'
 import type { DrillId } from '../engine/context.ts'
+import { buildCtx,DRILLS } from '../engine/context.ts'
 import { evaluateAll } from '../engine/evaluate.ts'
-import { fullPlan, simulate } from '../engine/simulate.ts'
+import { usd,usdFull } from '../engine/rates.ts'
 import type { SimResult } from '../engine/simulate.ts'
+import { fullPlan,simulate } from '../engine/simulate.ts'
+import { fmtTime,fmtWeekday } from '../engine/time.ts'
 import type { Evaluation } from '../engine/types.ts'
-import { fmtTime, fmtWeekday } from '../engine/time.ts'
-import { usd, usdFull } from '../engine/rates.ts'
-import { ActionChip, Btn, CargoIcon, cx, Panel, SampleTag, SimTag } from '../ui/primitives.tsx'
+import { useApp } from '../state.tsx'
 import { ScreenHeader } from '../ui/layout.tsx'
+import { ActionChip,Btn,CargoIcon,cx,Panel,SampleTag } from '../ui/primitives.tsx'
 
 const ICONS: Record<DrillId, LucideIcon> = { lanes_down_6h: Zap, wind_cranes_12h: CloudLightning, customs_outage_4h: ServerOff, reefer_power_r2: PlugZap }
 
@@ -60,9 +60,9 @@ export function Drill() {
   return (
     <div>
       <ScreenHeader
-        title="Drill Mode"
-        kicker={<><span>Screen 5 · rehearse</span><SimTag /></>}
-        sub="Run a disruption against today’s real boxes and see the plan and its costs, without touching anything live. The playbook is ready before the day it’s needed."
+        title="Disruption drills" sub="Rehearsal only. Simulation decisions stay unchanged."
+
+
         right={inDrill ? <Btn onClick={() => { app.setMode('disruption'); app.go('gate') }}>Exit drill</Btn> : null}
       />
 
@@ -72,12 +72,12 @@ export function Drill() {
           const on = inDrill && app.drill === d.id
           return (
             <button key={d.id} onClick={() => start(d.id)} aria-pressed={on}
-              className={cx('rounded-xl border px-4 py-3 text-left transition-colors', on ? 'drill-stripes border-warn/70' : 'border-line bg-panel hover:border-line-2 hover:bg-panel-2')}>
+              className={cx('rounded-xl border px-4 py-3 text-left transition-colors', on ? 'bg-info/10 border-info/70' : 'border-line bg-panel hover:border-line-2 hover:bg-panel-2')}>
               <div className="flex items-center gap-2">
                 <span className={cx('grid size-8 place-items-center rounded-lg', on ? 'bg-warn text-bg' : 'bg-panel-3 text-warn')}><Icon size={16} aria-hidden /></span>
                 <span className="text-[14px] font-semibold text-ink">{d.title}</span>
               </div>
-              <p className="mt-2 text-[12.5px] leading-snug text-ink-2">{d.blurb}</p>
+              <p className="mt-2 text-[12.5px] leading-snug text-ink-2">{({lanes_down_6h:'4 lanes unavailable · 6h',wind_cranes_12h:'Crane shutdown · 12h',customs_outage_4h:'Customs feed unavailable · 4h',reefer_power_r2:'Reefer block R2 loses power'})[d.id]}</p>
               <div className="mt-2 text-[12px] font-medium text-warn">{on ? '● Running' : 'Run drill →'}</div>
             </button>
           )
@@ -85,24 +85,24 @@ export function Drill() {
       </div>
 
       {!inDrill ? (
-        <Panel title="Pick a drill to start">
-          <p className="text-[13.5px] text-ink-2">Drills run on an ordinary-day baseline with the same 112 boxes. Approvals are disabled while a drill is running and a “DRILL — no live actions” banner stays on screen.</p>
+        <Panel title="Choose a disruption">
+          <p className="text-[13.5px] text-ink-2">Select a scenario above to compare its effect on 112 containers.</p>
         </Panel>
       ) : (
         <>
-          <div className="drill-stripes mb-4 rounded-xl border border-warn/50 px-4 py-2.5 text-[13px] font-semibold text-ink" role="status">
+          <div className="mb-4 rounded-xl border border-warn/50 px-4 py-2.5 text-[13px] font-semibold text-ink" role="status">
             <Siren size={14} className="mr-1.5 inline -translate-y-px text-warn" aria-hidden />
             DRILL — no live actions · {meta.title}
           </div>
           <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-            <Panel title="If this happened today" sub="Blunt reaction vs the Priority Lanes playbook, same boxes." right={<SampleTag />}>
+            <Panel title="Projected impact"  right={<SampleTag />}>
               <div className="grid grid-cols-2 gap-3">
                 <Outcome label={app.blunt.label} s={app.blunt} tone="crit" />
-                <Outcome label="Priority Lanes playbook" s={app.full} tone="good" />
+                <Outcome label="Proposed response" s={app.full} tone="good" />
               </div>
               <p className="mt-3 text-[12.5px] leading-snug text-muted">Ordinary-day baseline for comparison: {usdFull(baseSim.total)} projected, {baseSim.stranded3h} stranded.</p>
             </Panel>
-            <Panel title={`What changes: ${changes.length} recommendation${changes.length === 1 ? '' : 's'}`} sub="Compared with the same boxes on an ordinary day." bodyClass="p-0">
+            <Panel title={`What changes: ${changes.length} recommendation${changes.length === 1 ? '' : 's'}`}  bodyClass="p-0">
               <ul className="scroll-thin max-h-[420px] overflow-auto">
                 {changes.slice(0, 40).map((c) => (
                   <li key={c.after.box.id}>
@@ -126,7 +126,7 @@ export function Drill() {
               </ul>
             </Panel>
           </div>
-          <Panel title="Playbook, first moves" sub="The top of the drill plan, as the planner would brief it.">
+          <Panel collapsible title="Response details" >
             <ol className="grid gap-2 md:grid-cols-2">
               {changes.slice(0, 6).map((c, i) => (
                 <li key={c.after.box.id} className="flex gap-3 rounded-lg border border-line bg-panel-2/60 px-3 py-2">

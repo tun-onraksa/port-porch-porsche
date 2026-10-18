@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react'
+import { Anchor,ArrowLeft,Check,CircleCheck,FileText,Lock,Pencil,ShieldAlert,ThumbsDown,Truck,X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { Anchor, ArrowLeft, Check, CircleCheck, FileText, Lock, Pencil, ShieldAlert, ThumbsDown, Truck, X } from 'lucide-react'
-import { useApp } from '../state.tsx'
-import { BOXES, HERO_ID } from '../data/scenario.ts'
-import type { ActionKey, Cell, ColKey, Evaluation } from '../engine/types.ts'
-import { ACTIONS, actionLabel } from '../engine/actions.ts'
-import { CATEGORY_LABEL } from '../engine/urgency.ts'
-import { fmtDay, fmtDayTime, fmtTime, fmtWeekday, ms } from '../engine/time.ts'
+import { useMemo,useState } from 'react'
+import { BOXES,HERO_ID } from '../data/scenario.ts'
+import { actionLabel,ACTIONS } from '../engine/actions.ts'
 import { usdFull } from '../engine/rates.ts'
-import { eventLabel, pct } from '../engine/trust.ts'
-import { ACTION_COLOR, ACTION_ICON, ActionChip, BAND_COLOR, Btn, CargoIcon, ConfidenceBar, cx, Label, Panel, RealTag, SeverityBadge, SimTag, T49Urgency, UrgencyPill } from '../ui/primitives.tsx'
-import { Modal, ScreenHeader } from '../ui/layout.tsx'
+import { fmtDay,fmtDayTime,fmtTime,fmtWeekday,ms } from '../engine/time.ts'
+import { eventLabel,pct } from '../engine/trust.ts'
+import type { ActionKey,Cell,ColKey,Evaluation } from '../engine/types.ts'
+import { CATEGORY_LABEL } from '../engine/urgency.ts'
+import { useApp } from '../state.tsx'
+import { Modal,ScreenHeader } from '../ui/layout.tsx'
+import { ACTION_COLOR,ACTION_ICON,ActionChip,BAND_COLOR,Btn,CargoIcon,ConfidenceBar,cx,Disclosure,Panel,SeverityBadge,T49Urgency,UrgencyPill } from '../ui/primitives.tsx'
 
 const COLS: { key: ColKey; label: string; sub: string }[] = [
   { key: 'carrier', label: 'Carrier declaration', sub: 'booking / manifest' },
@@ -23,7 +23,7 @@ const COLS: { key: ColKey; label: string; sub: string }[] = [
 
 const SPOTLIGHT = [HERO_ID, 'sim-0002', 'sim-0003', 'sim-0004', 'sim-0006', 'sim-0007', 'sim-0008', 'sim-0009', 'sim-0010', 'sim-0013']
 
-export function BoxDetail() {
+export function BoxDetail({embedded=false,onInspect}:{embedded?:boolean;onInspect?:()=>void}) {
   const app = useApp()
   const e = app.evalById(app.boxId) ?? app.evalById(HERO_ID)!
   const b = e.box
@@ -34,9 +34,9 @@ export function BoxDetail() {
   const realBoxes = BOXES.filter((x) => x.real)
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Btn size="sm" variant="quiet" onClick={() => app.go('gate')}><ArrowLeft size={14} aria-hidden /> Gate Command</Btn>
-        <label className="ml-auto flex items-center gap-2 text-[12.5px] text-muted">
+      {!embedded&&<Btn size="sm" variant="quiet" className="mb-3" onClick={()=>app.go('gate')}><ArrowLeft size={16} aria-hidden/>Gate command</Btn>}
+      <ScreenHeader title="Cargo evidence" right={<div className="cargo-header-actions">
+        <label className="cargo-selector ml-auto flex items-center gap-2 text-[12.5px] text-muted">
           Box
           <select value={b.id} onChange={(ev) => app.go('box', ev.target.value)} className="h-8 max-w-[300px] rounded-lg border border-line-2 bg-panel px-2 font-mono text-[12.5px] text-ink">
             <optgroup label="Scenario boxes">
@@ -48,13 +48,8 @@ export function BoxDetail() {
             {!SPOTLIGHT.includes(b.id) && !b.real && <option value={b.id}>{b.number} · {b.cargo}</option>}
           </select>
         </label>
-      </div>
-
-      <ScreenHeader
-        title={b.id === HERO_ID ? 'Four stories, one box' : 'Box detail'}
-        kicker={<><span>Screen 2</span>{b.real ? <><RealTag /><SimTag>Post-arrival state simulated</SimTag></> : <SimTag />}</>}
-        sub={b.story}
-      />
+        {onInspect&&<Btn onClick={onInspect}>Inspect in 3D →</Btn>}
+      </div>}/>
 
       {/* header strip */}
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-line bg-panel px-4 py-3.5">
@@ -76,8 +71,8 @@ export function BoxDetail() {
       </div>
 
       <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <UrgencyCard e={e} />
         <RecommendationCard e={e} onModify={() => setModal('modify')} onReject={() => setModal('reject')} />
+        <UrgencyCard e={e} />
       </div>
 
       <SourceTable e={e} />
@@ -86,8 +81,8 @@ export function BoxDetail() {
       {!security && e.security.length > 0 && (
         <div className="mb-4 flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 text-[13px] text-ink-2">
           <Lock size={16} className="shrink-0 text-muted" aria-hidden />
-          <span><strong className="text-ink">Inspection requested.</strong> Security-relevant reasoning for this box is visible in the Security view only.</span>
-          <Btn size="sm" className="ml-auto" onClick={() => app.setView('security')}><ShieldAlert size={13} aria-hidden /> Switch to Security view</Btn>
+          <span><strong className="text-ink">Inspection requested.</strong> Review the security evidence.</span>
+          <Btn size="sm" className="ml-auto" onClick={() => app.setView('security')}><ShieldAlert size={13} aria-hidden /> Security evidence</Btn>
         </div>
       )}
 
@@ -117,16 +112,16 @@ function UrgencyCard({ e }: { e: Evaluation }) {
   const u = e.urgency
   const c = BAND_COLOR[u.band]
   return (
-    <Panel title="Which box can’t wait?" sub="Urgency 0–100. Every point is explained. Urgency is separate from risk: a box can be urgent and blocked.">
+    <Panel title="Priority" >
       <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
         <UrgencyPill u={u} size="lg" />
         <div className="rounded-lg border border-line bg-panel-2 px-3 py-2">
           <div className="text-[10.5px] font-semibold tracking-wider text-muted uppercase">Terminal49 urgency</div>
           <div className="mt-0.5 text-[15px]"><T49Urgency value={e.box.urgency} simulated={e.box.urgency_simulated} /></div>
-          <div className="text-[11px] text-dim">their field, shown alongside, not replaced</div>
+
         </div>
       </div>
-      <div className="mt-4">
+      <Disclosure title="Score calculation"><div className="mt-4">
         <div className="flex h-3.5 w-full gap-[2px] overflow-hidden rounded-[4px] bg-line" role="img" aria-label={`Score breakdown: ${u.factors.map((f) => `${f.label} ${f.points}`).join(', ')}`}>
           {u.factors.filter((f) => f.points > 0).map((f, i) => (
             <span key={f.key} title={`${f.label}: ${f.points}`} style={{ width: `${f.points}%`, background: c, opacity: 1 - i * 0.11 }} />
@@ -151,7 +146,7 @@ function UrgencyCard({ e }: { e: Evaluation }) {
             <span className="col-span-2 text-ink-2 sm:col-span-1">{f.why}</span>
           </li>
         ))}
-      </ul>
+      </ul></Disclosure>
     </Panel>
   )
 }
@@ -163,7 +158,7 @@ function RecommendationCard({ e, onModify, onReject }: { e: Evaluation; onModify
   const asg = (a ? app.plan : app.full).assignments[e.box.id]
   const Icon = ACTION_ICON[r.key]
   return (
-    <Panel title="Recommendation" sub="The gentlest step that resolves the issue. A person approves every action."
+    <Panel title="Recommendation"
       right={<span className="text-[12px] text-muted">Step {r.step} of 8</span>}>
       <div className="flex items-start gap-3">
         <span className="grid size-11 shrink-0 place-items-center rounded-xl" style={{ background: `color-mix(in oklab, ${ACTION_COLOR[r.key]} 20%, transparent)` }}>
@@ -174,11 +169,11 @@ function RecommendationCard({ e, onModify, onReject }: { e: Evaluation; onModify
           {asg && <div className="mt-0.5 font-mono text-[12.5px] text-ink-2">{asg.text}{!a && asg.kind !== 'none' && <span className="ml-1 font-sans text-dim">(proposed)</span>}</div>}
         </div>
       </div>
-      <Label><span className="mt-3 block">Why</span></Label>
+
       <ul className="space-y-1">
         {r.why.map((w) => <li key={w} className="flex gap-2 text-[13.5px] leading-snug text-ink"><span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-muted" />{w}</li>)}
       </ul>
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <Disclosure title="Action cost & alternatives"><div className="mt-3 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-line bg-panel-2 px-3 py-2">
           <div className="text-[10.5px] font-semibold tracking-wider text-muted uppercase">Cost of this action</div>
           <div className="font-mono text-[17px] text-ink">{usdFull(r.cost)}</div>
@@ -192,6 +187,7 @@ function RecommendationCard({ e, onModify, onReject }: { e: Evaluation; onModify
           </div>
         )}
       </div>
+      </Disclosure>
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
         {app.mode === 'drill' ? (
           <span className="text-[12.5px] text-warn">Drill: no live actions.</span>
@@ -238,16 +234,13 @@ function CellView({ c }: { c: Cell }) {
 }
 
 function SourceTable({ e }: { e: Evaluation }) {
+  const [all,setAll]=useState(false);const attrs=all?e.attrs:e.attrs.filter(a=>a.conflict);
   return (
-    <Panel className="mb-4" title="Which source do you trust?"
-      sub="Each source is the authority on what it measures or legally controls. Physical measurements beat declarations, fresher beats older, track record adjusts trust. Confidence = authority × freshness × track record."
-      right={<span className="flex flex-wrap gap-3 text-[11.5px] text-ink-2">
-        <span className="inline-flex items-center gap-1"><Check size={12} className="text-good" aria-hidden />trusted</span>
-        <span className="inline-flex items-center gap-1"><X size={12} className="text-crit" aria-hidden />rejected</span>
-        <span className="inline-flex items-center gap-1"><span className="size-2.5 rounded-sm border border-warn/60 bg-warn/20" aria-hidden />conflicting</span>
-        <span className="inline-flex items-center gap-1"><span className="line-through decoration-crit">abc</span> invalidated event</span>
-      </span>}
+    <Panel className="mb-4" title="Source comparison"
+
+      right={<Btn size="sm" onClick={()=>setAll(v=>!v)}>{all?'Conflicts only':'All fields'}</Btn>}
       bodyClass="p-0">
+      {!attrs.length&&<p className="p-4 text-muted">No conflicting fields. Select All fields to inspect sources.</p>}
       <div className="scroll-thin overflow-x-auto">
         <table className="w-full min-w-[1080px] table-fixed text-left [overflow-wrap:anywhere]">
           <colgroup>
@@ -271,7 +264,7 @@ function SourceTable({ e }: { e: Evaluation }) {
             </tr>
           </thead>
           <tbody>
-            {e.attrs.map((attr) => (
+            {attrs.map((attr) => (
               <tr key={attr.key} className={cx('border-b border-line/70 align-top', attr.conflict?.severity === 'critical' && 'bg-crit/[0.04]')}>
                 <th scope="row" className="px-3 py-2.5">
                   <div className="text-[13px] font-semibold text-ink">{attr.label}</div>
@@ -315,7 +308,7 @@ function SourceTable({ e }: { e: Evaluation }) {
 function SecurityPanel({ e }: { e: Evaluation }) {
   return (
     <Panel className="mb-4 border-crit/40" title={<span className="inline-flex items-center gap-2"><ShieldAlert size={16} className="text-crit" aria-hidden /> Security reasoning</span>}
-      sub="Visible to the Security role only. The same mismatch that keeps the gate moving also targets the inspection.">
+      >
       <ul className="grid gap-2 md:grid-cols-2">
         {e.security.map((s) => (
           <li key={s.title} className="rounded-lg border border-line bg-panel-2 px-3 py-2.5">
@@ -330,7 +323,7 @@ function SecurityPanel({ e }: { e: Evaluation }) {
 
 function Ladder({ e }: { e: Evaluation }) {
   return (
-    <Panel title="Action ladder" sub="What can you slow, reroute, inspect or release? Gentler steps say why they fall short; blunter steps say why they aren’t needed.">
+    <Panel collapsible title="Other actions" >
       <ol className="space-y-1.5">
         {e.rec.ladder.map((row) => {
           const chosen = row.status === 'chosen'
@@ -368,7 +361,7 @@ function Tasks({ e }: { e: Evaluation }) {
   const done = e.rec.tasks.filter((t) => app.tasksDone[t.id]).length
   const approved = !!app.approvals[e.box.id]
   return (
-    <Panel title="Task checklist" sub={approved ? 'Approved: tick tasks off as they’re done.' : 'Created when the action is approved.'}
+    <Panel title="Task checklist"
       right={<span className="font-mono text-[12px] text-ink-2">{done}/{e.rec.tasks.length}</span>}>
       <ul className="space-y-1">
         {e.rec.tasks.map((t) => (
@@ -422,7 +415,7 @@ function WhenWeKnew({ e }: { e: Evaluation }) {
   const stageColor = { paper: 'var(--color-sim)', discharge: 'var(--color-info)', gate: 'var(--color-good)' }
 
   return (
-    <Panel title="When we knew" sub="Each signal appears on the timeline when that data actually exists.">
+    <Panel collapsible title="Event history" >
       {firstFlag && daysBefore !== null && (
         <p className="mb-3 rounded-lg border border-good/40 bg-good/[0.07] px-3 py-2 text-[13px] leading-snug text-ink">
           First flagged <strong>{fmtDay(firstFlag.at)}, {daysBefore} days before arrival</strong>, from paperwork; confirmed at discharge {b.pod_discharged_at ? fmtDay(b.pod_discharged_at) : ''}; resolved before the truck arrived.

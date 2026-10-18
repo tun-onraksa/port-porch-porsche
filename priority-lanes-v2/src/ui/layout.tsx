@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { Anchor, FileText, Truck, X } from 'lucide-react'
 import { cx } from './primitives.tsx'
 
 export function ScreenHeader({ title, kicker, sub, right }: { title: string; kicker?: ReactNode; sub?: ReactNode; right?: ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="screen-header mb-4 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0 max-w-3xl">
         {kicker && <div className="mb-1 flex flex-wrap items-center gap-2 text-[12px] text-muted">{kicker}</div>}
         <h1 className="text-[22px] leading-tight font-semibold tracking-tight text-ink sm:text-[24px]">{title}</h1>
@@ -49,24 +49,11 @@ export function StageStrip({ active }: { active: 'paper' | 'discharge' | 'gate' 
 }
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; wide?: boolean }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    ref.current?.querySelector<HTMLElement>('textarea, input, button')?.focus()
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" className={cx('max-h-[90vh] w-full overflow-auto rounded-2xl border border-line-2 bg-panel-2 shadow-2xl', wide ? 'max-w-2xl' : 'max-w-lg')}>
-        <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="text-[15px] font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="rounded p-1 text-muted hover:bg-panel-3 hover:text-ink"><X size={16} /></button>
-        </div>
-        <div className="p-5">{children}</div>
-      </div>
-    </div>
-  )
+ const ref=useRef<HTMLDialogElement>(null)
+ const titleId=useId()
+ useEffect(()=>{const dialog=ref.current;if(!dialog)return;if(open&&!dialog.open)dialog.showModal();else if(!open&&dialog.open)dialog.close()},[open])
+ return <dialog ref={ref} aria-labelledby={titleId} onCancel={onClose} onClose={onClose} className={cx('quiet-modal',wide?'max-w-2xl':'max-w-lg')}>
+  <header><h2 id={titleId}>{title}</h2><button type="button" onClick={onClose} aria-label="Close"><X size={18}/></button></header>
+  <div className="p-5">{open?children:null}</div>
+ </dialog>
 }

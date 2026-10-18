@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
-import { CalendarClock, OctagonAlert, Table2, Wind } from 'lucide-react'
-import { useApp } from '../state.tsx'
-import { FORECAST_START, forecast } from '../engine/forecast.ts'
+import { CalendarClock,OctagonAlert,Table2,Wind } from 'lucide-react'
+import { useMemo,useState } from 'react'
 import type { ForecastHour } from '../engine/forecast.ts'
-import { HOUR, fmtTime, fmtWeekday, laHour } from '../engine/time.ts'
-import { Btn, cx, Panel, SampleTag, Segmented, SimTag } from '../ui/primitives.tsx'
+import { FORECAST_START,forecast } from '../engine/forecast.ts'
+import { HOUR,fmtTime,fmtWeekday,laHour } from '../engine/time.ts'
+import { useApp } from '../state.tsx'
 import { ScreenHeader } from '../ui/layout.tsx'
+import { Btn,Panel,Segmented,cx } from '../ui/primitives.tsx'
 
 const W = 1120
 const H = 270
@@ -39,9 +39,9 @@ export function GateForecast() {
   return (
     <div>
       <ScreenHeader
-        title="Gate Forecast"
-        kicker={<><span>Screen 4 · next 36 hours</span><SimTag /><SampleTag>Sample throughput: 15 trucks / lane / hr</SampleTag></>}
-        sub="Demand (boxes becoming available, appointments, other gate traffic) against capacity (open lanes × throughput), with known events overlaid. Plan pre-staging, slot shifts and inspection slots before the jam, not during it."
+        title="Gate forecast" sub="Next 36 hours · Los Angeles time"
+
+
         right={<>
           <Segmented label="Demand" value={which} onChange={setWhich} size="sm" options={[{ value: 'before', label: 'Before plan' }, { value: 'after', label: 'After plan' }]} />
           <Btn size="sm" onClick={() => setTable((t) => !t)}><Table2 size={13} aria-hidden /> {table ? 'Chart' : 'Table'}</Btn>
@@ -58,7 +58,7 @@ export function GateForecast() {
         {!f.jams.length && !f.windJams.length && <JamCard tone="good" title="No jam predicted" body="Demand stays under capacity for the next 36 hours." />}
       </div>
 
-      <Panel title="Trucks per hour: demand vs capacity" sub={<>Thu Oct 29 07:00 → Fri Oct 30 19:00 · LA time. Hover an hour for the numbers.</>} bodyClass="p-3">
+      <Panel title="Demand & capacity"  bodyClass="p-3">
         {table ? <ForecastTable hours={f.hours} which={which} /> : (
           <div className="scroll-thin relative overflow-x-auto">
             <div className="relative min-w-[900px]">
@@ -125,7 +125,7 @@ export function GateForecast() {
 
                 {/* queue panel */}
                 <g transform={`translate(0 ${H + 10})`}>
-                  <text x={PAD.l} y={QH + 4} fontSize={10} fill="var(--color-muted)">Trucks waiting at the end of each hour (red = jam, 10+)</text>
+                  <text x={PAD.l} y={QH + 4} fontSize={10} fill="var(--color-muted)">Trucks waiting · jam at 10+</text>
                   <line x1={PAD.l} x2={W - PAD.r} y1={QH - 10} y2={QH - 10} stroke="var(--color-line-2)" />
                   {f.hours.map((h, i) => {
                     const v = which === 'before' ? h.backlog : h.backlogPlanned
@@ -159,32 +159,32 @@ export function GateForecast() {
             </div>
             {/* legend */}
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 px-1 text-[12px] text-ink-2">
-              <Legend c="var(--color-s-other)" label="Other gate traffic (exports, empties)" />
-              <Legend c="var(--color-s-1)" label="Our import pickups" />
-              <Legend c="var(--color-s-3)" label="Next vessel pickups (sample)" />
-              <Legend c="var(--color-ink)" label="Capacity (open lanes × 15/hr)" line />
-              {app.ctx.weather && <Legend c="var(--color-warn)" label="Capacity if wind stops cranes" line dashed />}
-              <span className="inline-flex items-center gap-1.5"><OctagonAlert size={12} className="text-crit" aria-hidden /> Shaded = predicted jam (10+ waiting)</span>
+              <Legend c="var(--color-s-other)" label="Other traffic" />
+              <Legend c="var(--color-s-1)" label="Imports" />
+              <Legend c="var(--color-s-3)" label="Next vessel" />
+              <Legend c="var(--color-ink)" label={`Capacity (${app.ctx.resourcePlan?.gateProductivity??15}/lane/h)`} line />
+              {app.ctx.weather && <Legend c="var(--color-warn)" label="Wind scenario" line dashed />}
+              <span className="inline-flex items-center gap-1.5"><OctagonAlert size={12} className="text-crit" aria-hidden /> Jam: 10+ waiting</span>
             </div>
           </div>
         )}
       </Panel>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <Panel title="Recommendations" sub="Computed from the forecast and today’s box-by-box recommendations.">
+        <Panel title="Recommendations" >
           <ol className="space-y-2">
             {f.recs.map((r, i) => (
               <li key={r.title} className="flex gap-3 rounded-lg border border-line bg-panel-2/60 px-3 py-2.5">
                 <span className="grid size-6 shrink-0 place-items-center rounded-md bg-info/20 font-mono text-[12px] text-info">{i + 1}</span>
                 <div>
                   <div className="text-[13.5px] font-semibold text-ink">{r.title}</div>
-                  <div className="text-[12.5px] leading-snug text-ink-2">{r.detail}</div>
+                  <details className="inline-detail"><summary>Details</summary><p>{r.detail}</p></details>
                 </div>
               </li>
             ))}
           </ol>
         </Panel>
-        <Panel title="Events on the timeline" sub="Known in advance, so the playbook is ready before the gate needs it.">
+        <Panel collapsible title="Scheduled events" >
           <ul className="space-y-1.5 text-[13px]">
             {f.events.map((ev) => (
               <li key={ev.label} className="flex items-start gap-2.5">

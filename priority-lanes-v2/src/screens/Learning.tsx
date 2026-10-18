@@ -1,13 +1,13 @@
+import { CircleCheck,ClipboardList,Gauge,OctagonX,PiggyBank,Scale } from 'lucide-react'
 import { useState } from 'react'
-import { CircleCheck, ClipboardList, Gauge, OctagonX, PiggyBank, Scale } from 'lucide-react'
-import { useApp } from '../state.tsx'
-import { BOXES, HERO_ID, HISTORY, WEEKLY } from '../data/scenario.ts'
+import { BOXES,HERO_ID,HISTORY,WEEKLY } from '../data/scenario.ts'
+import { usd,usdFull } from '../engine/rates.ts'
+import { fmtTime,fmtYmd } from '../engine/time.ts'
+import type { Reliability,SourceKey } from '../engine/trust.ts'
 import { SOURCE_LABEL } from '../engine/trust.ts'
-import type { Reliability, SourceKey } from '../engine/trust.ts'
-import { fmtTime, fmtYmd } from '../engine/time.ts'
-import { usd, usdFull } from '../engine/rates.ts'
-import { Btn, cx, Kpi, Panel, SimTag } from '../ui/primitives.tsx'
+import { useApp } from '../state.tsx'
 import { ScreenHeader } from '../ui/layout.tsx'
+import { Btn,cx,Kpi,Panel,SimTag } from '../ui/primitives.tsx'
 
 type Bump = { key: SourceKey | `carrier:${string}`; right: boolean }
 interface OpenCase { id: string; boxId: string; title: string; question: string; options: { label: string; bumps: Bump[]; note: string }[] }
@@ -17,23 +17,23 @@ const OPEN: OpenCase[] = [
     id: 'hero', boxId: HERO_ID, title: 'CSLU7734521: declared empty, crane 27,400 kg',
     question: 'CBP exam result: which source was right?',
     options: [
-      { label: 'Crane + VGM right: loaded (undeclared frozen cargo)', note: 'COSCO declaration counted wrong', bumps: [{ key: 'crane_scale', right: true }, { key: 'vgm', right: true }, { key: 'carrier:COSU', right: false }, { key: 'carrier_declaration', right: false }] },
-      { label: 'Carrier right: box was empty', note: 'Crane and VGM counted wrong', bumps: [{ key: 'crane_scale', right: false }, { key: 'vgm', right: false }, { key: 'carrier:COSU', right: true }, { key: 'carrier_declaration', right: true }] },
+      { label: 'Crane + VGM correct', note: 'COSCO declaration counted wrong', bumps: [{ key: 'crane_scale', right: true }, { key: 'vgm', right: true }, { key: 'carrier:COSU', right: false }, { key: 'carrier_declaration', right: false }] },
+      { label: 'Carrier correct · empty', note: 'Crane and VGM counted wrong', bumps: [{ key: 'crane_scale', right: false }, { key: 'vgm', right: false }, { key: 'carrier:COSU', right: true }, { key: 'carrier_declaration', right: true }] },
     ],
   },
   {
     id: 'haz', boxId: 'sim-0007', title: 'EXFU hazmat tank: crane +6% vs VGM',
     question: 'Gate-scale re-weigh came back. Which source was right?',
     options: [
-      { label: 'Gate scale matched the crane: VGM was low', note: 'VGM counted wrong', bumps: [{ key: 'crane_scale', right: true }, { key: 'gate_scale', right: true }, { key: 'vgm', right: false }] },
-      { label: 'Gate scale matched the VGM: crane drifted', note: 'Crane scale counted wrong', bumps: [{ key: 'crane_scale', right: false }, { key: 'gate_scale', right: true }, { key: 'vgm', right: true }] },
+      { label: 'Crane correct · VGM low', note: 'VGM counted wrong', bumps: [{ key: 'crane_scale', right: true }, { key: 'gate_scale', right: true }, { key: 'vgm', right: false }] },
+      { label: 'VGM correct · crane drift', note: 'Crane scale counted wrong', bumps: [{ key: 'crane_scale', right: false }, { key: 'gate_scale', right: true }, { key: 'vgm', right: true }] },
     ],
   },
   {
     id: 'ms', boxId: 'sim-0013', title: 'TCNU discharge milestone retracted by COSCO',
     question: 'Terminal confirmed its own discharge time.',
     options: [
-      { label: 'Record: terminal event right, carrier event wrong', note: 'Shipping-line milestone counted wrong', bumps: [{ key: 'terminal_event', right: true }, { key: 'shipping_line_event', right: false }] },
+      { label: 'Terminal event correct', note: 'Shipping-line milestone counted wrong', bumps: [{ key: 'terminal_event', right: true }, { key: 'shipping_line_event', right: false }] },
     ],
   },
 ]
@@ -74,19 +74,19 @@ export function Learning() {
   return (
     <div>
       <ScreenHeader
-        title="Learning Log"
-        kicker={<><span>Screen 7 · after action</span><SimTag /></>}
-        sub="Every resolved conflict records which source turned out right. That track record feeds straight back into the confidence formula, and retracted (invalidated) events count against their source."
+        title="Learning log"
+
+
       />
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi icon={CircleCheck} tone="good" label="Caught before the gate (this week)" value={WEEKLY.caughtBeforeGate} sub={`of ${WEEKLY.conflicts} conflicts · simulated`} />
+        <Kpi icon={CircleCheck} tone="good" label="Caught early" value={WEEKLY.caughtBeforeGate} sub={`of ${WEEKLY.conflicts} conflicts · simulated`} />
         <Kpi icon={OctagonX} tone="info" label="Lane closures avoided" value={WEEKLY.laneClosuresAvoided} sub="one box handled instead" />
         <Kpi icon={PiggyBank} tone="good" label="Charges avoided" value={`~${usd(WEEKLY.chargesAvoided)}`} sub="sample rates · simulated" />
-        <Kpi icon={Gauge} label="Avg time to resolve" value={`${WEEKLY.avgResolveHours}h`} sub="flag → confirmed" />
+        <Kpi icon={Gauge} label="Resolution time" value={`${WEEKLY.avgResolveHours}h`} sub="flag → confirmed" />
       </div>
 
       <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Panel title="Record today’s outcomes" sub="Close the loop: tell the system which source was right. Watch the reliability table move.">
+        <Panel title="Record outcomes" >
           <ul className="space-y-3">
             {OPEN.map((c) => (
               <li key={c.id} className="rounded-lg border border-line bg-panel-2/50 p-3">
@@ -104,7 +104,7 @@ export function Learning() {
           </ul>
         </Panel>
 
-        <Panel title="Source reliability" sub="Share of past conflicts where the source was right (simulated history). Feeds the track-record factor, clamped to 0.8–1.0." right={<Scale size={15} className="text-muted" aria-hidden />}>
+        <Panel collapsible title="Source reliability"  right={<Scale size={15} className="text-muted" aria-hidden />}>
           <table className="w-full text-[12.5px]">
             <tbody>
               {Object.entries(app.rel.carriers).filter(([k]) => k === 'COSU' || k === 'MAEU' || k === 'MSCU').map(([k, r]) => (
@@ -119,7 +119,7 @@ export function Learning() {
         </Panel>
       </div>
 
-      <Panel className="mb-4" title="Resolved conflicts" sub="Which source was right, how long it took, what we did, what it saved." right={<SimTag />} bodyClass="p-0">
+      <Panel className="mb-4" collapsible title="Resolved cases"  right={<SimTag />} bodyClass="p-0">
         <div className="scroll-thin overflow-x-auto">
           <table className="w-full min-w-[980px] text-left text-[12.5px]">
             <thead className="text-[10.5px] tracking-wider text-muted uppercase">
@@ -144,7 +144,7 @@ export function Learning() {
         </div>
       </Panel>
 
-      <Panel title="Decision log" sub="Every approval, modification and rejection, with the reason. Times follow the simulated clock." right={<ClipboardList size={15} className="text-muted" aria-hidden />}>
+      <Panel title="Decision log"  right={<ClipboardList size={15} className="text-muted" aria-hidden />}>
         <ol className="space-y-1.5">
           {app.log.map((l, i) => (
             <li key={i} className="grid grid-cols-[52px_minmax(0,1fr)] gap-3 text-[12.5px]">

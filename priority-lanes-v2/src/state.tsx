@@ -1,5 +1,5 @@
 import { EMBEDDED, hostCommand } from './Embedded.tsx'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { BOXES, HERO_ID } from './data/scenario.ts'
 import type { DrillId, Mode } from './engine/context.ts'
@@ -71,9 +71,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Deep links: #gate, #box, #forecast … open a screen directly (handy for demos).
   const [screen, setScreen] = useState<Screen>(() => {
     const h = window.location.hash.slice(1).split('&')[0] as Screen
-    return SCREENS.includes(h) ? h : 'radar'
+    return EMBEDDED&&['box','radar','drill'].includes(h)?'gate':SCREENS.includes(h) ? h : EMBEDDED?'gate':'radar'
   })
-  const [mode, setModeRaw] = useState<Mode>(() => (hashFlag('drill') ? 'drill' : hashFlag('ordinary') ? 'ordinary' : 'disruption'))
+  const [mode, setModeRaw] = useState<Mode>(() => (!EMBEDDED&&hashFlag('drill') ? 'drill' : hashFlag('ordinary') ? 'ordinary' : 'disruption'))
   const [drill, setDrill] = useState<DrillId>('wind_cranes_12h')
   const [view, setView] = useState<View>(() => (hashFlag('security') || window.location.hash === '#security' ? 'security' : 'ops'))
   const [boxId, setBoxId] = useState(HERO_ID)
@@ -89,6 +89,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [actions, setActions] = useState(0) // planner clock advances a minute per decision
 
   const clock = NOW + Math.min(actions, 25) * MIN
+  const hostRunRef=useRef<number|null>(null)
+  const [hostRun,setHostRun]=useState<{runId:number;scenario:string}|null>(null)
   const [resourcePlan,setResourcePlan]=useState<EngineCtx['resourcePlan']>()
   const ctx = useMemo(() => ({...buildCtx(mode, drill),...(EMBEDDED&&mode!=='drill'&&resourcePlan?{resourcePlan,dayEnd:NOW-90*MIN+resourcePlan.hours*60*MIN}:{})}), [mode, drill,resourcePlan])
   const evals = useMemo(() => evaluateAll(BOXES, ctx, rel), [ctx, rel])
@@ -123,23 +125,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const receive=(event:MessageEvent)=>{
       if(event.source!==parent||event.origin!==location.origin||event.data?.source!=='porttable')return
       if(event.data.type==='route'&&SCREENS.includes(event.data.screen)){
-        setScreen(event.data.screen)
+        setScreen(EMBEDDED&&['box','radar','drill'].includes(event.data.screen)?'gate':event.data.screen)
         if(event.data.boxId)setBoxId(event.data.boxId)
         if(event.data.screen==='security')setView('security')
       }
-      if(event.data.type==='snapshot'){const p=event.data.snapshot;setResourcePlan(old=>old&&old.gates===p.gates&&old.workers===p.workers&&old.hours===p.hours&&old.gateProductivity===p.gateProductivity?old:{gates:p.gates,workers:p.workers,hours:p.hours,gateProductivity:p.gateProductivity})}
+      if(event.data.type==='snapshot'){const p=event.data.snapshot;if(hostRunRef.current!==p.runId){hostRunRef.current=p.runId;setApprovals({ordinary:{},disruption:{}});setLog([]);setHostRun({runId:p.runId,scenario:p.scenario})}setResourcePlan(old=>old&&old.gates===p.gates&&old.workers===p.workers&&old.hours===p.hours&&old.gateProductivity===p.gateProductivity?old:{gates:p.gates,workers:p.workers,hours:p.hours,gateProductivity:p.gateProductivity})}
       if(event.data.type==='reset'){setApprovals({ordinary:{},disruption:{}});setLog([]);setModeRaw('disruption')}
     }
     addEventListener('message',receive)
     return()=>removeEventListener('message',receive)
   },[])
   useEffect(()=>{
-    if(!EMBEDDED||mode==='drill')return
-    hostCommand('decisions',{mode,approvals:Object.entries(approvals).map(([id,a])=>({id,...a,number:byId.get(id)?.box.number,readyAt:byId.get(id)?.rec.offeredSlot??null})),log:log.slice(0,30),forecast:{cost:plan.total,baseline:blunt.total,proposed:full.total,pending}})
-  },[approvals,mode,log,plan,blunt,full,pending,byId])
+    if(!EMBEDDED||mode==='drill'||hostRun?.scenario!=='priority')return
+    hostCommand('decisions',{runId:hostRun.runId,scenario:hostRun.scenario,mode,approvals:Object.entries(approvals).map(([id,a])=>({id,...a,number:byId.get(id)?.box.number,readyAt:byId.get(id)?.rec.offeredSlot??null})),log:log.slice(0,30),forecast:{cost:plan.total,baseline:blunt.total,proposed:full.total,pending}})
+  },[approvals,mode,log,plan,blunt,full,pending,byId,hostRun])
   const value: AppCtx = {
     screen,
     go: (s, id) => {
+      if(EMBEDDED&&['radar','drill'].includes(s))s='gate'
+      if(EMBEDDED&&s==='box'){
+        const cargo=byId.get(id??boxId)?.box
+        if(cargo)hostCommand('inspect',{number:cargo.number})
+        return
+      }
       if (id) setBoxId(id)
       setScreen(s)
       history.replaceState(null, '', `#${s}`)
@@ -148,6 +156,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     mode,
     setMode: (m) => {
+      if(EMBEDDED&&m==='drill')return
       setModeRaw(m)
       if (m === 'drill') {setScreen('drill');hostCommand('route',{screen:'drill'})}
     },

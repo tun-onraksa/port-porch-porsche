@@ -2,14 +2,15 @@
 
 ## Integrated Priority Lanes workspace
 
-The `dev` branch combines PortTable's 3D simulation, order board, action cards and cost ledger with all eight Priority Lanes V2 dashboards. Serve this directory and open `index.html#p-gate` for Gate Command, or `index.html#live` for the simulation. Dashboard pages appear under **Decision intelligence** and follow the workspace's light/dark appearance.
+The `dev` branch combines PortTable's 3D simulation, resource workbench, cargo inspections and calculation audits with five Priority Lanes V2 dashboards. Serve this directory and open `index.html#p-gate` for Gate Command, or `index.html#live` for the simulation. Pages are grouped under **Operations**, **Planning**, and **Reference** and use the workspace’s light-only appearance.
 
-- Opening a dashboard selects **Priority Lanes · 112 containers**. Four identities come from Terminal49; 108 containers and all post-arrival evidence are mocked. The original four-container sample and 1,000-container busy-day scenario remain available.
-- All 112 start in the simulation yard at 06:00, already discharged. Cargo evidence opens that exact container in 3D; order records also link to its evidence. Geometry is illustrative.
+- Forecast, Security Review, Learning Log and Data & Methodology keep the selected scenario and playback time. They support the four-container Terminal49 sample, 1,000-container synthetic day and 112-container Priority Lanes scenario. Gate Command offers an explicit switch when its Priority Lanes queue is not selected.
+- All 112 start in the simulation yard at 06:00, already discharged. Cargo links open that exact container in 3D. Geometry is illustrative.
 - Gate approvals change future simulation intervals: priority cargo moves ahead, slow actions delay pickup, rail routing requires staffed rail capacity, and inspection/hold actions prevent departure until changed. Source holds cannot be overridden by release. Historical frames remain unchanged.
-- Gate forecasts retain the mocked Oct 29 07:30 appointments and evidence, using approved gate count, workers, hours and gate productivity. The 36-hour forecast repeats that daily schedule. Terminal playback has its own 06:00–06:00 clock; the forecast is not a replay of the animation.
-- Gate delay/handling estimates and terminal operating expenses have different scopes and are displayed separately. Drills do not modify the terminal simulation.
-- Dashboard approvals, learning outcomes and integration history are session-only. Resource settings and existing order annotations retain their local storage behavior. No external notifications are sent.
+- Gate Forecast aggregates the same ten-minute frames as the animation, from the current clock through the end of the 06:00–06:00 teaching day. It separates truck exits, rail exits, staffed gate slots and pickup-ready inventory. It does not invent truck arrivals, weather disruptions or next-day demand. Partial-hour windows retain exact integer capacity rounding. Gate Command alone retains its separate mocked Oct 29 appointment planner; its action costs are not terminal operating costs.
+- Gate delay/handling estimates and terminal operating expenses have different scopes and are displayed separately.
+- Security Review lists non-exited held or flagged cargo from the selected run; recorded clearances remain explicitly unverified. Synthetic seal cases appear only after the incident time. Learning Log reports elapsed exits/costs and actions from this run, with no invented weekly savings or accuracy claims.
+- Scenario changes start a new run at 06:00 and clear session cargo decisions and learning events. Resource settings and existing order annotations retain their local storage behavior. Dashboard decisions carry a run identifier to reject stale messages. No external notifications are sent.
 
 Build both parts after editing (Node 24+ and Python 3):
 
@@ -19,10 +20,11 @@ npm ci
 npm run build:integrated
 cd ..
 node tests/simulation.cjs
+node tests/dashboard-data.cjs
 python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
-`src/priority-workspace.js` connects dashboard and terminal state through validated same-origin messages. `src/priority-data.js` is generated from Shannon's scenario and evaluation engine by `priority-lanes-v2/scripts/export-porttable.ts`. The standalone dashboard remains at `priority-lanes-v2/priority-lanes.html`; the workspace uses its embedded presentation. `priority-lanes-demo.html` preserves the earlier V1 demo from the merged branch.
+`src/dashboard-data.js` builds read-only reports from simulation frames, cargo actions, source flags and run-scoped events. `priority-lanes-v2/src/screens/SimulationDashboard.tsx` renders the four embedded reports. `src/priority-workspace.js` connects dashboard and terminal state through validated same-origin messages. `src/priority-data.js` is generated from Shannon's scenario and evaluation engine by `priority-lanes-v2/scripts/export-porttable.ts`. The standalone dashboard remains at `priority-lanes-v2/priority-lanes.html`; the workspace uses its embedded presentation. `priority-lanes-demo.html` preserves the earlier V1 demo from the merged branch.
 
 A hypothetical container-terminal planning scenario in the existing PortTable 3D port. Compare operating plans using six decisions: available berths, scheduled cranes, workers per shift, operating hours, yard space, and truck-gate/rail capacity.
 
@@ -30,30 +32,32 @@ Open `index.html` in a desktop browser. The 3D view requires WebGL and the Three
 
 ## Workspace
 
-The UI takes information-architecture inspiration from [Fleetbase](https://github.com/fleetbase/fleetbase), specifically its order board, live operations, activity-flow configuration, service-zone and orchestrator screens. No Fleetbase source code or image assets are embedded.
+The sidebar groups Live operations, Gate command and Security review under **Operations**; Resource planning and Gate forecast under **Planning**; and Learning log and Data & methodology under **Reference**. Resource planning retains the `#orchestrator` URL. Order board, Order configuration, Service zones, Ledger, Cargo evidence, Pre-arrival radar and Disruption drills have been removed. Cargo evidence, Pre-arrival radar and Disruption drills URLs redirect to Gate Command; the other retired URLs redirect to Live operations. Existing saved annotations are retained in storage but the retired editors are no longer loaded.
 
-- **Order board**: searchable and filterable tracking and planning boards; rich cards, assignments, custom fields, milestones and history; filtered CSV export.
-- **Live operations**: 3D inspection, focused camera views, playback, ten-minute steps and exact cargo-flow details. Resource proposals live in the Orchestrator.
-- **Order configuration**: editable planning stages, custom fields, lifecycle rules and entity directory, alongside workflow defaults and simulation rates.
-- **Service zones**: schematic quay, yard, gate and rail areas. Capacity edits become Orchestrator drafts for approval.
-- **Orchestrator**: conflict alerts, cargo inspection/release choices, granular operational details, a preset suggestion, draft resource sliders, cost/backlog previews and approval from the current simulation time onward.
-- **Ledger**: full-day cost breakdown, modeled completion and backlog, source data coverage, and CSV summary with the active plan and assumption rates. This is not an invoicing or payment system.
+- **Live operations**: 3D terminal, area focus controls, playback, cost/throughput metrics and an approved-capacity inspector. Cargo records open directly from inventory or the 3D view. The conflict response stays beside the scene.
+- **Resource planning**: select an operation, inspect its current state, choose mocked recommendations or edit all seven resource quantities, review the calculated impact, and approve. Changes affect future intervals only. Decision history is available in a disclosure.
+- **Model assumptions**: a read-only reference dialog available from either page. The cost projection opens a separate arithmetic audit.
 
-Plans, rates, notes, configuration and up to 30 activity entries persist in local browser storage. Storage failures show a session-only status. Data is not sent to a backend. Priority/zone annotations do not imply tracking events or change cargo sequencing; the release-lag and resource settings do affect the simulation. Individual container annotations override configuration defaults. Restart conflict demo resets playback, resources and rates; planning metadata is retained.
+The initial playback time is 06:00. Resource plans, existing rates, and up to 30 activity entries persist locally. Cargo decisions and historical simulation schedules last for the session. Restarting the conflict demo starts a synthetic day with default resources and rates.
 
 ### Design approach
 
-Apple Human Interface Guidelines were applied as web design principles: persistent shallow sidebar navigation (`sidebars.md`, Best practices), searchable tables with selected-item details (`lists-and-tables.md`, Content), grouped validated forms (`entering-data.md`, Best practices), and feedback next to the affected controls (`feedback.md`, Best practices). System typography, semantic color tokens, system dark appearance, reduced-motion behavior, labeled controls and keyboard-accessible native dialogs support the interface. The primary accent is reserved for selection and action; amber always has explanatory text.
+All seven screens prioritize the current task. Source tables, calculation rules, histories and alternative actions use labeled disclosures. Gate Command shows twelve queue entries, with cargo links opening the existing 3D inspector. Scenario and resource controls share one compact dashboard menu. Hold reasons, deadlines, approval actions and the distinction between recorded and mocked data remain visible.
 
-Browser checks cover rich cards and search, planning assignments and persistence, lifecycle validation, drop handlers, mocked conflict pause/navigation, hold details, preset drafts, both release choices, approval gating, historical-frame preservation and mobile layout. Pure simulation checks cover conservation, costs, staffing, holds, release timing and future-only resource changes.
+Apple Human Interface Guidelines inform this web interface: persistent selection and adjacent detail (`split-views.md`, Best practices), shallow navigation (`sidebars.md`, Best practices), restrained toolbars (`toolbars.md`, Best practices), and a clear primary approval action (`buttons.md`, Style). The port model is the visual focus; native buttons, disclosures and dialogs handle supporting tasks. Compact screens stack the scene and inspector and retain all decisions.
+
+System typography uses a 32px page title, 20–24px section titles and 13–14px controls/body text. Light surfaces use #ffffff with #1d2939 content (14.70:1), #526174 secondary text (6.32:1) and #245bc4 accent (6.23:1). The 3D investigation is the purposeful motion; reduced motion skips its camera transition. Keyboard focus and 44px compact-screen controls are supported. Light appearance is fixed regardless of the system theme.
+
+Browser verification covers removed routes, operation selection, related resource focus, draft/discard, keyboard-opened calculation audits, model reference, conflict pause/investigate/inspect/release, historical preservation, dashboard approvals, all three scenarios and mobile layouts under both system theme preferences. Pure model checks cover conservation, costs, capacity, holds and release timing. Dashboard tests additionally reconcile every future exit and forecast interval, partial-hour capacity, rail separation, zero staffing, source provenance and future-only plan changes across all three scenarios.
 
 ## Demo
 
-1. Inspect the source sample on the Order board; switch between Tracking and Planning views.
-2. Open Order configuration to define stages, fields, entities and completion rules.
-3. Choose **Run conflict demo** from Live operations or Orchestrator.
-4. At 08:00, playback pauses on a mocked seal-check exception. Inspect a container, select inspection or release, and edit or accept the preset resource draft.
-5. Review projected costs and backlog, then approve and resume. The simulation retains elapsed activity and applies decisions going forward.
+1. Open Live operations and choose a scenario. Play the shift or select an area to inspect its activity.
+2. Select **Adjust plan** to inspect capacity and draft changes in Orchestrator.
+3. For the guided incident, expand **Try a cargo conflict** and choose **Run conflict demo**.
+4. At 08:00, the port pauses and shows the seal-mismatch alert. Select **Investigate** to zoom into the cargo.
+5. Choose inspection or release, adjust resources, and open **Day estimate** to review the arithmetic.
+6. Approve to resume. The simulation preserves completed activity and applies decisions going forward.
 
 ## Actual data versus assumptions
 
@@ -77,7 +81,7 @@ Crane/gate/rail rates exclude labor, counted in the worker line. Scheduled resou
 
 24-hour fixed expenses accrue while closed; scheduled costs stop at the selected operating hours. Cost per completed container divides elapsed costs by terminal exits (undefined when none exit). Daily plan totals always show the full 24 hours. Queue ship-hours and yard container-hours are separate indicators, not charges. Capital, depreciation, debt service, cargo value, demurrage and external delay costs are excluded.
 
-Long Beach authority FY2024 operations/administration of $218.866m and depreciation/amortization of $162.014m are displayed only as historical context, never added or used to calibrate private-terminal unit rates. Source: [City FY2024 financial disclosure, printed p.19](https://www.longbeach.gov/globalassets/finance/media-library/documents/city-budget-and-finances/treasury/2024-summary-of-financial-information-continuing-disclosure).
+Long Beach authority FY2024 operations/administration of $218.866m and depreciation/amortization of $162.014m are historical context, never added or used to calibrate private-terminal unit rates. Source: [City FY2024 financial disclosure, printed p.19](https://www.longbeach.gov/globalassets/finance/media-library/documents/city-budget-and-finances/treasury/2024-summary-of-financial-information-continuing-disclosure).
 
 ## Development and validation
 
@@ -86,13 +90,16 @@ No build dependencies required:
 ```sh
 python3 build.py
 node tests/simulation.cjs
+node tests/dashboard-data.cjs
 ```
 
 - `src/sim.js`: pure deterministic flow and cost model.
 - `src/terminal49.js`: source records and provenance.
 - `src/scene.js`: retained original scene geometry, adapted to model state.
-- `src/game.js`: decisions, cost breakdown, comparison and playback.
-- `src/workspace.js`: navigation, order board, local planning configuration, service zones, orchestration, ledger and persistence.
+- `src/game.js`: playback, live cost and throughput metrics.
+- `src/workspace.js`: navigation, shared cargo records and local persistence.
+- `src/cargo-records.js`: contextual container record dialogs.
+- `src/orchestration.js`: resource drafts, suggested actions, incident decisions and approval.
 - `src/body.html`, `src/style.css`, `src/head.html`: interface.
 - `index.html`: generated standalone page; rebuild after editing source.
 
@@ -104,28 +111,22 @@ Live operations includes camera views for berths, yard, truck gates and rail. Cl
 
 Motion follows the most recent ten-minute simulation batch and stops when paused or reduced motion is requested. Vehicle positions illustrate a batch, not physical trajectories. Rail remains a continuous-capacity approximation, not a train timetable. Crane positions show scheduled equipment; throughput remains pooled as defined by the model. Source tracking is never replaced with modeled events.
 
-### Granular board and configuration
-
-The board has Tracking and Planning views. Tracking is source evidence or simulation state; Planning supports drag-and-drop and an accessible stage selector in container details. Cards show vessel, terminal, arrival, equipment basis, coordinator, carrier, customer, priority and zone. Details include milestones, local assignments, appointment/destination notes, custom fields and planning history. Synthetic records have explicitly fictional demo organizations; real records remain unassigned until edited.
-
-Order configuration includes Details, Activity flow, Custom fields, Lifecycle, Entities and Cost assumptions. Edit stage labels/instructions, add/reorder intermediate stages, define text/number/date fields, and enforce sequential forward handoffs and completion requirements. These planning settings and annotations save to browser local storage. Removing an assigned entity or occupied stage is blocked. Removing a custom-field definition retains existing values locally. CSV exports include planning metadata.
-
 ### Conflict-driven Orchestrator demo
 
 Choose **Run conflict demo** in Live operations or Orchestrator. This starts a synthetic day at 06:00 with default resources and rates. At 08:00 a deterministic seal-reference exception holds the first 12 synthetic containers, pauses playback and shows a red alert over the 3D port. Select Investigate to zoom into the cargo and review the decision controls beside the scene. Inspect individual records, select a 30-minute mocked inspection or immediate mocked release, then review or edit the resource draft. The preset AI suggestion is hardcoded; no model or external service is called.
 
-The projected cost and backlog include the cargo disposition and draft resource plan. **Approve & resume simulation** applies changes from the paused time forward and resumes playback. Held boxes cannot depart before their release step, while other eligible cargo can continue. Historical frames and costs are preserved when resources change. Rates remain global teaching assumptions. Resource decisions live in the Orchestrator; zone edits are routed into its approval draft. Playback is blocked while the conflict awaits approval. The Investigate flow keeps the cargo close-up, disposition choices, resource draft and calculation preview on Live operations.
+The projected cost and backlog include the cargo disposition and draft resource plan. **Approve & resume simulation** applies changes from the paused time forward and resumes playback. Held boxes cannot depart before their release step, while other eligible cargo can continue. Historical frames and costs are preserved when resources change. Rates remain global teaching assumptions. Resource decisions live in the Orchestrator and the in-scene conflict inspector. Playback is blocked while the conflict awaits approval. The Investigate flow keeps the cargo close-up, disposition choices, resource draft and calculation preview on Live operations.
 
-Guided playback, cargo holds and time-based approvals are session-only and reset on reload; planning configuration, assignments and the last resource values persist locally. No real cargo is released, no customs system is contacted, and no real transport is dispatched. One scripted incident is included; this is not an automatic detection engine for arbitrary operational conflicts.
+Guided playback, cargo holds and time-based approvals are session-only and reset on reload; the last resource values persist locally; legacy planning metadata is retained. No real cargo is released, no customs system is contacted, and no real transport is dispatched. One scripted incident is included; this is not an automatic detection engine for arbitrary operational conflicts.
 
 ### 3D interior inspections and calculation audit
 
 Selecting a yard container or an Orchestrator held-cargo card now flies the existing port camera into a detailed container at that yard position. Container doors open, the roof can be cut away, and packages can be selected for a closer view. Three procedural asset families are included: palletized cartons, sealed oil drums and crated pump assemblies. Door-seal and exterior camera views, roof/door toggles and previous/next-container navigation support inspection. Contents, weights and seals are explicitly mocked; no interior manifest is inferred from Terminal49. Off-yard records use a labeled mock inspection bay. Playback remains paused and returning to the port preserves the pending decision. Reduced-motion preferences skip the camera and door animation.
 
-Click **Projected end of day** or activate it with Enter/Space to open the calculation audit. It reconciles elapsed and future operating costs with the projected total, expands the resource quantities/rates/hours for each category, explains rail rounding, and shows the completed/backlog equations from the same simulated run. It does not add an inspection fee or claim to model real invoices.
+Click **Day estimate** or activate it with Enter/Space to open the calculation audit. It reconciles elapsed and future operating costs with the projected total, expands the resource quantities/rates/hours for each category, explains rail rounding, and shows the completed/backlog equations from the same simulated run. It does not add an inspection fee or claim to model real invoices.
 
 Asset/UI files: `src/cargo-models.js`, `src/inspection.js`, and `src/projection.js`. No external 3D model downloads or AI services are required for these features; the existing Three.js CDN dependency remains.
 
 ### In-scene conflict response
 
-A conflict does not automatically navigate to the Orchestrator. The port pauses with a red accessible alert. **Investigate** flies into the affected cargo and reveals the decision panel beside the 3D view. Choose inspection followed by release, immediate release on approval, or keep the cargo held and stay paused. Resource sliders, the preset suggestion and the calculation pop-up remain available alongside the model. Approval closes inspection and resumes the port; inspection and immediate-release timing use the existing model. While the conflict remains unresolved, the simulation clock stays fixed at the incident time. Closing the alert or returning to the port does not release cargo.
+A conflict does not automatically navigate to the Orchestrator. The port pauses with a red accessible alert. **Investigate** flies into the affected cargo and reveals the decision panel beside the 3D view. Choose inspection followed by release, immediate release on approval, or keep the cargo held and stay paused. Resource action cards, quantity steppers, the preset suggestion and the calculation pop-up remain available alongside the model. Approval closes inspection and resumes the port; inspection and immediate-release timing use the existing model. While the conflict remains unresolved, the simulation clock stays fixed at the incident time. Closing the alert or returning to the port does not release cargo.
