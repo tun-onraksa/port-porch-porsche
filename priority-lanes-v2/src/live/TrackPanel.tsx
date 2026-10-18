@@ -19,7 +19,10 @@ export function TrackPanel() {
     e.preventDefault()
     setBusy(true)
     setResult(null)
-    setResult(await trackBox(number, type, scac))
+    const r = await trackBox(number, type, scac)
+    setResult(r)
+    // Tell the top-bar Terminal49 light (src/t49-status.js) that a real request just went through.
+    if (r.ok) { try { localStorage.setItem('t49:last', JSON.stringify({ at: new Date().toISOString(), id: r.id, status: r.status })) } catch { /* private mode */ } }
     setBusy(false)
   }
 
