@@ -4,6 +4,9 @@
 const TYPES = ['bill_of_lading', 'booking_number', 'container'];
 
 module.exports = async (req, res) => {
+  // GET is a status check for the "Terminal49" light: is the route deployed and does it hold a key?
+  // It never calls Terminal49 (the free plan has no free read to ping) and never returns the key.
+  if (req.method === 'GET') return res.status(200).json({ ok: true, configured: !!process.env.T49_API_KEY });
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Use POST.' });
   const key = process.env.T49_API_KEY;
   if (!key) return res.status(500).json({ ok: false, error: 'The server has no Terminal49 key. Set T49_API_KEY in the Vercel project settings.' });
