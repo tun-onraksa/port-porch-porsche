@@ -11,6 +11,7 @@ import { usdFull } from '../engine/rates.ts'
 import { eventLabel, pct } from '../engine/trust.ts'
 import { ACTION_COLOR, ACTION_ICON, ActionChip, BAND_COLOR, Btn, CargoIcon, ConfidenceBar, cx, Label, Panel, RealTag, SeverityBadge, SimTag, T49Urgency, UrgencyPill } from '../ui/primitives.tsx'
 import { Modal, ScreenHeader } from '../ui/layout.tsx'
+import { BoxTracker } from '../live/BoxTracker.tsx' // PortAble kit
 
 const COLS: { key: ColKey; label: string; sub: string }[] = [
   { key: 'carrier', label: 'Carrier declaration', sub: 'booking / manifest' },
@@ -55,6 +56,8 @@ export function BoxDetail() {
         kicker={<><span>Screen 2</span>{b.real ? <><RealTag /><SimTag>Post-arrival state simulated</SimTag></> : <SimTag />}</>}
         sub={b.story}
       />
+
+      <BoxTracker e={e} /> {/* PortAble kit: parcel-style status line */}
 
       {/* header strip */}
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-line bg-panel px-4 py-3.5">
