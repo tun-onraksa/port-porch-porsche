@@ -1,12 +1,12 @@
 // Shared workspace adapter for Priority Lanes V2 and the terminal simulation.
 // Only exact-origin messages from our dashboard frame may edit this mock scenario.
-const priorityPages={gate:['Gate command','Queue & decision statistics'],forecast:['Gate forecast','Demand & capacity'],security:['Security review','Conflicting source evidence'],learning:['Learning log','Outcomes & reliability'],built:['Data & methodology','Sources & model assumptions'],rulebook:['Rulebook','Priority Lanes rules']};
+const priorityPages={gate:['Dashboard','Decisions, queue & gate plan'],forecast:['Gate forecast','Demand & capacity'],security:['Security review','Conflicting source evidence'],learning:['Learning log','Outcomes & reliability'],built:['Data & methodology','Sources & model assumptions'],rulebook:['Rulebook','Priority Lanes rules']};
 let priorityActions=[],priorityDecisionSignature='',priorityForecast=null,priorityLog=[],prioritySelectedNumber=PRIORITY_CARGO.find(c=>c.id==='sim-0001')?.number||PRIORITY_CARGO[4].number;
 let priorityReady=false;
 const priorityPane=document.createElement('section');priorityPane.id='priorityDashboard';priorityPane.hidden=true;priorityPane.innerHTML='<iframe id="priorityFrame" title="Priority Lanes operational dashboards" src="priority-lanes-v2/priority-lanes.html?porttable=1#gate"></iframe>';$('main').append(priorityPane);
 const priorityFrame=$('priorityFrame');
 for(const[key,[label,sub]]of Object.entries(priorityPages))pageInfo['p-'+key]=[label,'PRIORITY LANES',sub];
-const navigationGroups=[['Operations',['live','p-gate','p-security']],['Planning',['orchestrator','p-forecast']],['Reference',['p-learning','p-rulebook','p-built']]];
+const navigationGroups=[['Operations',['p-gate','live','p-security']],['Planning',['orchestrator','p-forecast']],['Reference',['p-learning','p-rulebook','p-built']]];
 const navigationIcons={live:'live','p-gate':'orders','p-security':'ledger',orchestrator:'orchestrator','p-forecast':'live','p-learning':'ledger','p-built':'ledger','p-rulebook':'config'};
 $('navigation').innerHTML=navigationGroups.map(([label,pages])=>`<section class="nav-section" aria-labelledby="nav-${label.toLowerCase()}"><h2 class="nav-group-label" id="nav-${label.toLowerCase()}">${label}</h2>${pages.map(key=>`<a href="#${key}" data-page-link="${key}">${icon(navigationIcons[key])}<span>${pageInfo[key][0]}</span></a>`).join('')}</section>`).join('');
 
@@ -67,3 +67,5 @@ cargoModelProfile=function(number){
 const priorityInspectionUI=renderInspectionUI;
 renderInspectionUI=function(){priorityInspectionUI();if(!cargoInspection||$('scenario').value!=='priority')return;prioritySelectedNumber=cargoInspection.number;const c=PRIORITY_CARGO.find(b=>b.number===prioritySelectedNumber);if(!c)return;const panel=document.createElement('section');panel.className='priority-inspection-evidence';panel.innerHTML=`<h3>${esc(c.cargo)} · mock source evidence</h3><p>${esc(c.holdReason||'No blocking discrepancy in the mocked records.')}</p><p></p><button class="button" id="inspectionPriorityEvidence">Gate decisions →</button>`;inspectionPanel.prepend(panel);$('inspectionPriorityEvidence').onclick=()=>{closeCargoInspection(false);location.hash='p-gate';sendPriority('route',{screen:'gate',boxId:c.id});};};
 recalc();navigate();showPriorityPage();
+// Dashboard is the home page: a bare visit opens it on the 112-container Priority Lanes scenario.
+if(window.landedHome){ensurePriorityScenario();showPriorityPage();}

@@ -96,7 +96,7 @@ function outcomeList(items: { cargo: string }[], empty = 'None') {
   return <span title={names.join(', ')}>{items.length} · {names.slice(0, 2).join(', ')}{names.length > 2 ? ` +${names.length - 2}` : ''}</span>
 }
 
-function BluntVsGentle() {
+export function BluntVsGentle() {
   const app = useApp()
   const { blunt, plan, full, evals, mode, pending } = app
   const approved = evals.length - pending
@@ -184,7 +184,7 @@ function DecisionCell({ e, a }: { e: Evaluation; a: Approval | undefined }) {
   )
 }
 
-function Queue() {
+export function Queue() {
   const app = useApp()
   const { evals, approvals, plan, full, view } = app
   const [filter, setFilter] = useState<Filter>('all')

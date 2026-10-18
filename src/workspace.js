@@ -24,7 +24,7 @@ function restore(){try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)|
 }catch{}}
 
 function navigate(){
- $('statusMessage').hidden=true;const requested=location.hash.slice(1);activePage=['p-box','p-radar','p-drill'].includes(requested)?'p-gate':pageInfo[requested]?requested:'live';
+ $('statusMessage').hidden=true;const requested=location.hash.slice(1);window.landedHome??=!requested;activePage=['p-box','p-radar','p-drill'].includes(requested)?'p-gate':pageInfo[requested]?requested:'p-gate';
  if(requested!==activePage)history.replaceState(null,'','#'+activePage);
  document.querySelectorAll('[data-page]').forEach(el=>el.hidden=el.dataset.page!==activePage);
  document.querySelectorAll('[data-page-link]').forEach(el=>{if(el.dataset.pageLink===activePage)el.setAttribute('aria-current','page');else el.removeAttribute('aria-current');});
