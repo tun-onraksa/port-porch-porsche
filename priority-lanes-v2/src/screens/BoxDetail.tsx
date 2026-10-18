@@ -1,3 +1,4 @@
+import { BoxTracker } from '../live/BoxTracker.tsx'
 import { Anchor,ArrowLeft,Check,CircleCheck,FileText,Lock,Pencil,ShieldAlert,ThumbsDown,Truck,X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useMemo,useState } from 'react'
@@ -50,6 +51,8 @@ export function BoxDetail({embedded=false,onInspect}:{embedded?:boolean;onInspec
         </label>
         {onInspect&&<Btn onClick={onInspect}>Inspect in 3D →</Btn>}
       </div>}/>
+
+      <BoxTracker e={e} /> {/* PortAble kit: parcel-style status line */}
 
       {/* header strip */}
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border border-line bg-panel px-4 py-3.5">

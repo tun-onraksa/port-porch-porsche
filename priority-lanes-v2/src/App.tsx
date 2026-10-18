@@ -1,5 +1,6 @@
 import { Embedded, EMBEDDED } from './Embedded.tsx'
-import { BookOpen, ChartColumn, Layers, LayoutDashboard, Lock, Play, Radar, ShieldAlert, Siren, Workflow } from 'lucide-react'
+import { BookOpen, ChartColumn, Layers, LayoutDashboard, Lock, Play, Radar, ShieldAlert, Siren, SlidersHorizontal, Workflow } from 'lucide-react'
+import { RulebookScreen } from './live/RulebookScreen.tsx' // PortAble kit
 import type { LucideIcon } from 'lucide-react'
 import { useApp } from './state.tsx'
 import type { Screen } from './state.tsx'
@@ -26,6 +27,7 @@ const NAV: { id: Screen; label: string; icon: LucideIcon; sub: string }[] = [
   { id: 'security', label: 'Security View', icon: ShieldAlert, sub: 'Dual use' },
   { id: 'learning', label: 'Learning Log', icon: BookOpen, sub: 'After action' },
   { id: 'built', label: 'How it’s built', icon: Workflow, sub: 'Feasibility' },
+  { id: 'rulebook', label: 'Rulebook', icon: SlidersHorizontal, sub: 'Your rules' }, // PortAble kit
 ]
 
 function Logo() {
@@ -142,6 +144,7 @@ export default function App() {
           {screen === 'security' && <Security />}
           {screen === 'learning' && <Learning />}
           {screen === 'built' && <HowBuilt />}
+          {screen === 'rulebook' && <RulebookScreen />}
         </main>
       </div>
       <Guide />

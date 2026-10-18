@@ -5,7 +5,7 @@ import type { Box, Category, Urgency, UrgencyBand, UrgencyFactor } from './types
 import { HOUR, fmtDuration, fmtTime, ms } from './time.ts'
 import { RATES } from './rates.ts'
 
-const CATEGORY_POINTS: Record<Category, number> = {
+export const CATEGORY_POINTS: Record<Category, number> = { // PortAble kit: exported so the Rulebook can edit it
   medical: 30,
   relief_supplies: 28,
   perishable_food: 22,

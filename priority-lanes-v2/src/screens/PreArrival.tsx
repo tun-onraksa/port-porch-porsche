@@ -1,3 +1,4 @@
+import { TrackPanel } from '../live/TrackPanel.tsx'
 import { ArrowRight,CircleCheck,Mail } from 'lucide-react'
 import { useMemo,useState } from 'react'
 import type { InboundRecord } from '../data/scenario.ts'
@@ -64,6 +65,7 @@ export function PreArrival() {
         {showRaw&&<pre className="scroll-thin mt-4 max-h-[380px] overflow-auto text-[12px]">{JSON.stringify(SNAPSHOT,null,2)}</pre>}
        </div>
       </details>
+      <TrackPanel />
 
       {/* ---------------- simulated paperwork checks */}
       <Panel

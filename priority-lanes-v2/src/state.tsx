@@ -12,10 +12,11 @@ import type { Reliability } from './engine/trust.ts'
 import type { ActionKey, Evaluation } from './engine/types.ts'
 import type { Ctx as EngineCtx } from './engine/context.ts'
 import { MIN } from './engine/time.ts'
+import { useRulebookVersion } from './live/rulebook.ts' // PortAble kit
 
-export type Screen = 'radar' | 'gate' | 'box' | 'forecast' | 'drill' | 'security' | 'learning' | 'built'
+export type Screen = 'radar' | 'gate' | 'box' | 'forecast' | 'drill' | 'security' | 'learning' | 'built' | 'rulebook' // PortAble kit: + rulebook
 export type View = 'ops' | 'security'
-const SCREENS: Screen[] = ['radar', 'gate', 'box', 'forecast', 'drill', 'security', 'learning', 'built']
+const SCREENS: Screen[] = ['radar', 'gate', 'box', 'forecast', 'drill', 'security', 'learning', 'built', 'rulebook']
 const hashFlag = (k: string) => window.location.hash.split('&').includes(k)
 
 export interface Approval { state: 'approved' | 'modified' | 'rejected'; key: ActionKey; proposed: ActionKey; reason?: string; at: number }
@@ -92,7 +93,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const hostRunRef=useRef<number|null>(null)
   const [hostRun,setHostRun]=useState<{runId:number;scenario:string}|null>(null)
   const [resourcePlan,setResourcePlan]=useState<EngineCtx['resourcePlan']>()
-  const ctx = useMemo(() => ({...buildCtx(mode, drill),...(EMBEDDED&&mode!=='drill'&&resourcePlan?{resourcePlan,dayEnd:NOW-90*MIN+resourcePlan.hours*60*MIN}:{})}), [mode, drill,resourcePlan])
+  const rulebookVersion = useRulebookVersion() // PortAble kit: re-run the engine when the rules change
+  const ctx = useMemo(() => ({...buildCtx(mode, drill),...(EMBEDDED&&mode!=='drill'&&resourcePlan?{resourcePlan,dayEnd:NOW-90*MIN+resourcePlan.hours*60*MIN}:{})}), [mode, drill,resourcePlan,rulebookVersion])
   const evals = useMemo(() => evaluateAll(BOXES, ctx, rel), [ctx, rel])
   const byId = useMemo(() => new Map(evals.map((e) => [e.box.id, e])), [evals])
   const liveMode: LiveMode = mode === 'ordinary' ? 'ordinary' : 'disruption'

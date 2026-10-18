@@ -1,3 +1,4 @@
+import { RulebookScreen } from './live/RulebookScreen.tsx'
 import { useEffect, useState } from 'react'
 import { useApp } from './state.tsx'
 import { GateCommand } from './screens/GateCommand.tsx'
@@ -23,6 +24,7 @@ export function Embedded(){
   <main id="main" className="embedded-content">
    {!props?<p role="status">Loading simulation…</p>:<>
     {app.screen==='gate'&&(snapshot?.scenario==='priority'?<GateCommand/>:<Panel title="Gate command"><p>The detailed appointment queue belongs to the 112-container Priority Lanes scenario. Your selected simulation is unchanged.</p><div className="simulation-actions"><Btn variant="primary" onClick={()=>app.go('forecast')}>View this simulation’s forecast</Btn><Btn onClick={()=>hostCommand('select-priority')}>Switch to Priority Lanes</Btn></div></Panel>)}
+    {app.screen==='rulebook'&&(snapshot?.scenario==='priority'?<RulebookScreen terminalIntegration/>:<Panel title="Rulebook"><p>These rules apply to the Priority Lanes appointment queue.</p><Btn onClick={()=>hostCommand('select-priority')}>Switch to Priority Lanes</Btn></Panel>)}
     {app.screen==='forecast'&&<SimulationForecast {...props}/>}{app.screen==='security'&&<SimulationSecurity key={`${snapshot?.runId}`} {...props}/>}{app.screen==='learning'&&<SimulationLearning key={`${snapshot?.runId}`} {...props}/>}{app.screen==='built'&&<SimulationMethodology {...props}/>}
    </>}
   </main>
