@@ -2,7 +2,7 @@
 // Reads top to bottom the way a planner decides: what's happening → the few numbers that matter →
 // the next calls to make → what the plan achieves → everything else, folded away.
 // Reuses Gate Command's own panels (plan comparison, full queue); nothing here changes the engine.
-import { ArrowRight, Check, ChevronDown, CircleCheck, Undo2 } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, CircleCheck, RotateCcw, Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { useApp } from '../state.tsx'
 import type { Evaluation } from '../engine/types.ts'
@@ -12,7 +12,7 @@ import { RATES, usdFull } from '../engine/rates.ts'
 import { actionLabel, holdLabel } from '../engine/actions.ts'
 import { ScreenHeader } from '../ui/layout.tsx'
 import { Btn, Disclosure, Panel, cx } from '../ui/primitives.tsx'
-import { BluntVsGentle, Queue } from './GateCommand.tsx'
+import { Queue } from './GateCommand.tsx'
 import { LookupPanel } from '../live/LookupPanel.tsx'
 import { INBOUND, SNAPSHOT } from '../data/scenario.ts'
 import { paperworkChecks } from '../engine/paperwork.ts'
@@ -143,6 +143,46 @@ function DecideNext({ items, total }: { items: Evaluation[]; total: number }) {
   )
 }
 
+// The gate plan in three lines: what the plan achieves against holding everything, and one approve button.
+function PlanPanel() {
+  const app = useApp()
+  const { blunt, full, plan, evals, mode, pending } = app
+  const fully = pending === 0
+  const saved = blunt.total ? Math.round((1 - full.total / blunt.total) * 100) : 0
+  const rows: [string, string, string][] = [
+    ['Charges and truck waiting', usdFull(blunt.total), usdFull(full.total)],
+    ['Trucks waiting over 3 h', String(blunt.stranded3h), String(full.stranded3h)],
+    ['Priority cargo out by 11:00', `${blunt.priority.clearedBy11} of ${blunt.priority.total}`, `${full.priority.clearedBy11} of ${full.priority.total}`],
+  ]
+  return (
+    <Panel title="Gate plan" right={saved > 0 ? <span className="rounded-md bg-good/12 px-1.5 py-0.5 text-[12px] font-semibold text-good">−{saved}% cost</span> : undefined}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-5 gap-y-2 text-[13px]">
+        <span />
+        <span className="text-right text-[11.5px] font-medium text-muted">{blunt.label}</span>
+        <span className="text-right text-[11.5px] font-medium text-muted">With the plan</span>
+        {rows.map(([label, a, b]) => (
+          <div key={label} className="contents">
+            <span className="border-t border-line pt-2 text-ink-2">{label}</span>
+            <span className="border-t border-line pt-2 text-right font-mono text-muted">{a}</span>
+            <span className="border-t border-line pt-2 text-right font-mono font-semibold text-ink">{b}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        {mode === 'drill' ? <p className="text-[12.5px] text-warn">Drill · approvals disabled.</p>
+          : fully ? <>
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-good"><CircleCheck size={16} aria-hidden /> Plan approved</span>
+              <Btn size="sm" variant="quiet" onClick={app.resetApprovals}><RotateCcw size={13} aria-hidden /> Reset demo</Btn>
+            </>
+          : <>
+              <Btn variant="primary" onClick={app.approveAll}><Check size={15} aria-hidden /> Approve plan ({pending} boxes)</Btn>
+              <span className="text-[12px] text-muted">{evals.length - pending ? `${evals.length - pending} approved so far · now ${usdFull(plan.total)}` : 'Each box keeps its own suggestion. Holds stay locked.'}</span>
+            </>}
+      </div>
+    </Panel>
+  )
+}
+
 function LaneStrip() {
   const { ctx, full } = useApp()
   const now = ctx.now
@@ -211,17 +251,17 @@ export function Dashboard() {
         <Metric label="Delay & handling cost" value={usdFull(plan.total)} note={`Full plan: ${usdFull(full.total)} (−${savedFull}% vs holding all)`} />
       </div>
 
+      {/* Two independent columns so a tall panel on one side never leaves a gap on the other. */}
       <div className="mb-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,1fr)]">
-        <DecideNext items={waiting.slice(0, 5)} total={waiting.length} />
-        <div className="grid gap-4">
-          <BluntVsGentle />
-          <LaneStrip />
+        <div className="grid content-start gap-4">
+          <DecideNext items={waiting.slice(0, 5)} total={waiting.length} />
+          <Terminal49Panel />
         </div>
-      </div>
-
-      <div className="mb-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,1fr)]">
-        <Terminal49Panel />
-        <LookupPanel />
+        <div className="grid content-start gap-4">
+          <PlanPanel />
+          <LaneStrip />
+          <LookupPanel />
+        </div>
       </div>
 
       <Disclosure title={<span className="inline-flex items-center gap-2">All {evals.length} boxes<span className="font-normal text-muted">· full queue, filters and search</span></span>}>
@@ -229,7 +269,7 @@ export function Dashboard() {
       </Disclosure>
 
       {decided > 0 && (
-        <p className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] text-muted"><Undo2 size={13} aria-hidden /> Approvals stay for this session. Use Reset in the plan panel to start over.</p>
+        <p className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] text-muted"><Undo2 size={13} aria-hidden /> Approvals stay for this session. Use Reset demo in the Gate plan to start over.</p>
       )}
     </div>
   )
