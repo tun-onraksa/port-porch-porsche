@@ -2,7 +2,8 @@
 // Reads top to bottom the way a planner decides: what's happening → the few numbers that matter →
 // the next calls to make → what the plan achieves → everything else, folded away.
 // Reuses Gate Command's own panels (plan comparison, full queue); nothing here changes the engine.
-import { Check, CircleCheck, Undo2 } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, CircleCheck, Undo2 } from 'lucide-react'
+import { useState } from 'react'
 import { useApp } from '../state.tsx'
 import type { Evaluation } from '../engine/types.ts'
 import { LANES, backgroundPerHour, laneDown, openLanes } from '../engine/context.ts'
@@ -12,7 +13,7 @@ import { actionLabel, holdLabel } from '../engine/actions.ts'
 import { ScreenHeader } from '../ui/layout.tsx'
 import { Btn, Disclosure, Panel, cx } from '../ui/primitives.tsx'
 import { BluntVsGentle, Queue } from './GateCommand.tsx'
-import { TrackPanel } from '../live/TrackPanel.tsx'
+import { LookupPanel } from '../live/LookupPanel.tsx'
 import { INBOUND, SNAPSHOT } from '../data/scenario.ts'
 import { paperworkChecks } from '../engine/paperwork.ts'
 import { fmtWeekday } from '../engine/time.ts'
@@ -82,36 +83,61 @@ function Metric({ label, value, note, tone }: { label: string; value: string | n
   )
 }
 
-function DecideNext({ items, total }: { items: Evaluation[]; total: number }) {
+// Where each suggested action is worked on: checks and holds in Security review, everything else on the box
+// itself in the 3D yard (the cargo inspection drawer).
+const SECURITY_ACTIONS = new Set(['inspect', 'hold', 'close'])
+
+function DecideRow({ e, i }: { e: Evaluation; i: number }) {
   const app = useApp()
+  const [open, setOpen] = useState(false)
   const drill = app.mode === 'drill'
+  const slot = app.full.assignments[e.box.id]?.text
+  const sev = e.severity
+  const security = SECURITY_ACTIONS.has(e.rec.key)
+  return (
+    <li className="border-t border-line">
+      <div className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-3 px-5 py-3.5 sm:grid-cols-[28px_minmax(0,1fr)_auto] sm:items-center">
+        <span className={cx('grid size-7 place-items-center rounded-full text-[12px] font-semibold', sev === 'critical' ? 'bg-crit/12 text-crit' : sev === 'major' ? 'bg-warn/12 text-warn' : 'bg-panel-2 text-muted')}>{i + 1}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[14.5px] font-semibold text-ink">{e.box.cargo}</span>
+            <span className="font-mono text-[12px] text-muted">{e.box.number}</span>
+          </div>
+          <p className="mt-0.5 text-[13px] leading-snug text-ink-2">{reason(e)}</p>
+        </div>
+        <div className="col-start-2 flex flex-wrap items-center gap-2 sm:col-start-auto sm:justify-end">
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+            className="inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[13px] font-medium text-ink hover:bg-panel-2">
+            {actionLabel(e.rec.key)}{slot ? <span className="font-normal text-muted"> · {slot}</span> : null}
+            <ChevronDown size={14} className={cx('text-muted transition-transform', open && 'rotate-180')} aria-hidden />
+          </button>
+          {drill ? <span className="text-[12px] text-warn">Drill</span> : <Btn size="sm" onClick={() => app.approve(e)} title={`Approve: ${actionLabel(e.rec.key)}`}><Check size={13} aria-hidden /> Approve</Btn>}
+        </div>
+      </div>
+      {open && (
+        <div className="mx-5 mb-3.5 rounded-lg bg-panel-2 px-4 py-3 text-[13px] sm:ml-[60px]">
+          <p className="font-medium text-ink">{e.rec.headline}</p>
+          {e.rec.why.length > 0 && <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-ink-2">{e.rec.why.slice(0, 3).map((w) => <li key={w}>{w}</li>)}</ul>}
+          {e.rec.tasks.length > 0 && <p className="mt-2 text-[12.5px] text-muted">Next: {e.rec.tasks.slice(0, 2).map((t) => `${t.text} (${t.who})`).join(' · ')}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {security
+              ? <Btn size="sm" onClick={() => app.go('security')}>Open Security review <ArrowRight size={13} aria-hidden /></Btn>
+              : <Btn size="sm" onClick={() => app.go('box', e.box.id)}>See the box in the yard <ArrowRight size={13} aria-hidden /></Btn>}
+            {security && <Btn size="sm" variant="quiet" onClick={() => app.go('box', e.box.id)}>See the box in the yard</Btn>}
+          </div>
+        </div>
+      )}
+    </li>
+  )
+}
+
+function DecideNext({ items, total }: { items: Evaluation[]; total: number }) {
   return (
     <Panel title="Decide next" right={<span className="text-[12.5px] text-muted">{total ? `${total} waiting · most urgent first` : 'Nothing waiting'}</span>} bodyClass="p-0">
       {items.length === 0 ? (
         <p className="flex items-center gap-2 px-5 pb-5 text-[13.5px] text-ink-2"><CircleCheck size={16} className="text-good" aria-hidden /> Every box that needed a call has one. The rest run on the plan.</p>
       ) : (
-        <ol>
-          {items.map((e, i) => {
-            const slot = app.full.assignments[e.box.id]?.text
-            const sev = e.severity
-            return (
-              <li key={e.box.id} className="grid grid-cols-[28px_minmax(0,1fr)] items-start gap-3 border-t border-line px-5 py-3.5 sm:grid-cols-[28px_minmax(0,1fr)_auto] sm:items-center">
-                <span className={cx('grid size-7 place-items-center rounded-full text-[12px] font-semibold', sev === 'critical' ? 'bg-crit/12 text-crit' : sev === 'major' ? 'bg-warn/12 text-warn' : 'bg-panel-2 text-muted')}>{i + 1}</span>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-x-2">
-                    <span className="text-[14.5px] font-semibold text-ink">{e.box.cargo}</span>
-                    <span className="font-mono text-[12px] text-muted">{e.box.number}</span>
-                  </div>
-                  <p className="mt-0.5 text-[13px] leading-snug text-ink-2">{reason(e)}</p>
-                </div>
-                <div className="col-start-2 flex flex-wrap items-center gap-2.5 sm:col-start-auto sm:justify-end">
-                  <span className="text-[13px] font-medium text-ink">{actionLabel(e.rec.key)}{slot ? <span className="font-normal text-muted"> · {slot}</span> : null}</span>
-                  {drill ? <span className="text-[12px] text-warn">Drill</span> : <Btn size="sm" onClick={() => app.approve(e)} title={`Approve: ${actionLabel(e.rec.key)}`}><Check size={13} aria-hidden /> Approve</Btn>}
-                </div>
-              </li>
-            )
-          })}
-        </ol>
+        <ol>{items.map((e, i) => <DecideRow key={e.box.id} e={e} i={i} />)}</ol>
       )}
     </Panel>
   )
@@ -195,7 +221,7 @@ export function Dashboard() {
 
       <div className="mb-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,1fr)]">
         <Terminal49Panel />
-        <TrackPanel />
+        <LookupPanel />
       </div>
 
       <Disclosure title={<span className="inline-flex items-center gap-2">All {evals.length} boxes<span className="font-normal text-muted">· full queue, filters and search</span></span>}>
