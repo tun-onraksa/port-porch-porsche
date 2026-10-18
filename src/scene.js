@@ -322,6 +322,7 @@ function resize() {
  if (!w || !h) return;
  camera.aspect=w/h; camera.updateProjectionMatrix();
  if(renderer) renderer.setSize(w,h,false);
+ if(window.c184View?.active){window.c184View.refocus();return;}
  if(inspectionAsset)frameInspection(inspectionCamera);else if(window.focusPort)window.focusPort(viewFocus);else fitPort();
 }
 new ResizeObserver(resize).observe(host); resize();
@@ -388,6 +389,7 @@ if(renderer){
  let down=null;
  renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];camAnim=null;});
  renderer.domElement.addEventListener('pointerup',e=>{
+  if(window.c184View?.active)return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
   const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
   if(inspectionAsset){const target=raycaster.intersectObjects(inspectionAsset.group.children,true).find(h=>h.object.userData.inspection&&(inspectionOpen||h.object.userData.inspection.kind==='seal'));if(target&&window.selectInspectionPart){const part=target.object.userData.inspection;window.selectInspectionPart(part.kind,part.index);}return;}
@@ -399,9 +401,11 @@ if(renderer){
  });
 }
 
+if(renderer&&controls)window.c184View=buildC184Scene({THREE,scene,camera,controls,host,reduced});
 function animate(t) {
  requestAnimationFrame(animate);
  if (!host.clientWidth || !host.clientHeight) return;
+ if(window.c184View?.active){camAnim=null;window.c184View.draw(t);renderer.render(scene,camera);return;}
  const f=currentRun.frames[currentStep],p=f.plan;
  if(lastRun!==currentRun||lastStep!==currentStep){
   visibleCargo=currentRun.containers.filter(c=>c.dischargeStep!==null&&c.dischargeStep<=currentStep&&(c.exitStep===null||c.exitStep>currentStep)).slice(0,252);

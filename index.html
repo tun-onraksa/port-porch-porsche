@@ -79,6 +79,18 @@
 @media(max-width:760px){.workspace-toolbar{padding-left:8px;gap:8px}.workspace-toolbar .breadcrumb{display:none}}
 /* Navigation follows the operational workflow. */
 .nav-section{display:flex;flex-direction:column;gap:5px}.nav-section+.nav-section{margin-top:12px}.nav-section .nav-group-label{margin:0;padding:8px 12px;font-size:10px;line-height:1.5;font-weight:650;letter-spacing:1.2px}.nav-section:first-child .nav-group-label{padding-top:0}
+
+/* Guided container journey: focused scene with decisions beside it. */
+.c184-header[hidden],.c184-panel[hidden],.c184-playbar[hidden]{display:none!important}
+.c184-launch{display:grid;justify-items:start;gap:10px;margin-top:18px;padding-top:18px;border-top:1px solid var(--line)}.c184-launch small{margin:0!important;font-size:12px;color:var(--muted);line-height:1.5}
+
+.c184-header{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:20px;margin-bottom:20px}.c184-header h2{font-size:28px;margin:12px 0 6px}.c184-header p{margin:0;color:var(--muted);font-size:13px}.c184-header-actions{display:flex;gap:8px}.c184-progress{list-style:none;display:flex;gap:0;padding:0;margin:0;width:100%;max-width:800px}.c184-progress li{flex:1;font-size:12px;color:var(--muted);border-bottom:3px solid var(--line);padding:10px 0}.c184-progress li.current{color:var(--accent);border-color:var(--accent);font-weight:600}.c184-progress li.done{border-color:#4b9078;color:#276a51}
+.c184-active .c184-launch,.c184-active #kpis,.c184-active .ops-toolbar,.c184-active #operationsInspector,.c184-active .decision-handoff,.c184-active .live-conflict-decisions,.c184-active .scene-conflict-banner,.c184-active .view-caption,.c184-active #labels,.c184-active .home,.c184-active .playbar,.c184-active #pageActions{display:none!important}.c184-active .live-grid{grid-template-columns:minmax(0,1fr) 320px}.c184-active .live-stage .port-view{height:clamp(460px,65vh,760px)}.c184-active .port-view #scene{bottom:68px}
+.c184-panel{padding:22px;align-self:start}.c184-panel-top{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted);margin-bottom:20px}.c184-panel h2{font-size:20px;margin:0 0 10px}.c184-panel p{font-size:13px;line-height:1.6;color:var(--muted)}.c184-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:18px 0;margin:0}.c184-stats dt{font-size:12px;color:var(--muted)}.c184-stats dd{text-align:left;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;margin:7px 0 0}.c184-evidence{display:block!important;margin:0 0 18px;border-top:1px solid var(--line);font-size:12px}.c184-evidence>div{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}.c184-evidence dt{color:var(--muted);flex-shrink:0}.c184-evidence dd{margin:0;text-align:right}.c184-actions{display:grid;gap:10px}.c184-actions small,.c184-comparison small{font-size:12px;line-height:1.5;color:var(--muted)}.c184-actions .badge{justify-self:start}.c184-comparison{border-radius:12px;background:#f1f5fa;margin-top:18px;padding:16px;font-size:12px}.c184-comparison strong{display:block;font-size:16px;margin-bottom:14px}.c184-comparison>div{display:flex;flex-direction:column;gap:5px;margin:10px 0}.c184-comparison span{color:var(--muted)}.c184-history{margin-top:22px;border-top:1px solid var(--line);padding-top:16px;font-size:12px}.c184-history summary{cursor:pointer}.c184-history ol{padding:0;list-style:none}.c184-history li{display:flex;gap:12px;padding:8px 0;line-height:1.5}.c184-history time{color:var(--muted);font-variant-numeric:tabular-nums}
+.c184-playbar{position:absolute;bottom:0;left:0;right:0;min-height:68px;display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-top:1px solid var(--line)}.c184-playbar span{font-size:13px;flex:1;white-space:nowrap;font-variant-numeric:tabular-nums}.c184-playbar label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}.c184-playbar select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+#c184Alert{max-width:440px;padding:0;border:1px solid #e9b8b6;border-radius:16px;background:var(--surface);color:var(--ink)}#c184Alert::backdrop{background:#192c4255}#c184Alert h2{margin-top:0;font-size:24px}#c184Alert p{font-size:14px;line-height:1.6}#c184Alert small{color:var(--muted)}.c184-alert-band{background:#fbeae9;color:#a92b28;padding:15px 22px;font-weight:600;font-size:13px}
+@media(max-width:1000px){.c184-active .live-grid{grid-template-columns:1fr}.c184-panel{width:100%;box-sizing:border-box}.c184-stats{max-width:440px}.c184-active .live-stage .port-view{height:500px}.c184-header h2{font-size:24px}}@media(max-width:560px){.c184-launch{align-items:start;flex-direction:column}.c184-progress li{font-size:10px}.c184-playbar{flex-wrap:wrap;gap:8px}.c184-active .port-view #scene{bottom:112px}.c184-playbar{min-height:112px}.c184-playbar #followC184{min-height:36px}.c184-playbar label{gap:4px}.c184-playbar .button{padding-inline:10px}.c184-header-actions{width:100%}.c184-panel{padding:18px}}
+
 </style>
 <a href="#main" class="skip">Skip to content</a>
 <div class="workspace">
@@ -312,6 +324,124 @@ function buildCargoInspection(THREE,number){
  }
  const light=new THREE.PointLight(0xfff3d6,.8,7);light.position.set(0,1.8,.5);group.add(light);
  return {group,profile,packages,doors,roof,seal,dispose(){for(const r of new Set(resources))r.dispose();}};
+}
+
+</script>
+<script>
+// A separate, deterministic presentation clock. It never rewrites terminal cost/inventory history.
+class C184Journey {
+ constructor(){this.reset();}
+ reset(){this.phase='arriving';this.elapsed=0;this.phaseTime=0;this.paused=false;this.route=null;this.events=[{at:0,text:'C184 arrived · chilled strawberries · demo data'}];}
+ get duration(){return {arriving:4,unloading:4,intake:4,divert:3,queue:this.route==='priority'?10:45,inspection:15,departing:5}[this.phase]||0;}
+ get awaitingDecision(){return ['flagged','choice','cleared','departed'].includes(this.phase);}
+ get queuePosition(){return this.phase==='queue'?(this.route==='priority'?1:Math.max(1,4-Math.floor(this.phaseTime/15))):null;}
+ get stage(){return ['arriving','unloading','intake'].includes(this.phase)?0:['flagged','divert','choice'].includes(this.phase)?1:['queue','inspection'].includes(this.phase)?2:this.phase==='departed'?4:3;}
+ enter(phase,text){this.elapsed=Math.round(this.elapsed*1e8)/1e8;this.phase=phase;this.phaseTime=0;this.paused=this.awaitingDecision;if(text)this.events.push({at:this.elapsed,text});}
+ advance(minutes){if(!Number.isFinite(minutes)||minutes<0||this.paused||this.awaitingDecision)return;
+  while(minutes>0&&!this.paused&&!this.awaitingDecision){const used=Math.min(minutes,this.duration-this.phaseTime);this.elapsed+=used;this.phaseTime+=used;minutes-=used;if(this.phaseTime+1e-8<this.duration)break;
+   const next={arriving:['unloading','Crane unloading'],unloading:['intake','On terminal vehicle · moving to intake'],intake:['flagged','Held: manifest 20 pallets / intake record 18'],divert:['choice','Inspection queue · priority decision required'],queue:['inspection','Inspection started · '+(this.route==='priority'?'10':'45')+' min wait'],inspection:['cleared','20 pallets verified; intake corrected. Awaiting release approval.'],departing:['departed','C184 passed the truck gate']}[this.phase];this.enter(...next);
+  }
+ }
+ investigate(){if(this.phase!=='flagged')return false;this.enter('divert','Investigation opened · diverted from main route');return true;}
+ choose(route){if(this.phase!=='choice'||!['priority','standard'].includes(route))return false;this.route=route;this.enter('queue',route==='priority'?'Priority refrigerated bay approved':'Standard inspection queue selected');return true;}
+ release(){if(this.phase!=='cleared')return false;this.enter('departing','Release approved · all checks complete');return true;}
+ toggle(){if(!this.awaitingDecision)this.paused=!this.paused;}
+}
+
+</script>
+<script>
+// Detailed teaching diorama in the existing renderer. Original scene objects are restored on exit.
+function buildC184Scene({THREE,scene,camera,controls,host,reduced}){
+ const group=new THREE.Group();group.visible=false;scene.add(group);
+ const mat=c=>new THREE.MeshStandardMaterial({color:c,roughness:.72});
+ const labels=[];
+ const white=mat(0xf4f6f8),steel=mat(0x7d91a8),blue=mat(0x376ac2),dark=mat(0x25364b),amber=mat(0xd59632),green=mat(0x4b9078);
+ const geom=new THREE.BoxGeometry(1,1,1);
+ function box(w,h,d,m,x,y,z,parent=group){const o=new THREE.Mesh(geom,m);o.scale.set(w,h,d);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;}
+ function text(s,w,x,y,z,parent=group,color='#324960'){
+  const c=document.createElement('canvas');c.height=80;let ctx=c.getContext('2d');ctx.font='600 40px system-ui';c.width=Math.ceil(ctx.measureText(s).width)+48;ctx=c.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,80);ctx.fillStyle=color;ctx.font='600 40px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(s,c.width/2,40);
+  const texture=new THREE.CanvasTexture(c);texture.encoding=THREE.sRGBEncoding;
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false}));sprite.scale.set(w,w/8,1);sprite.position.set(x,y,z);parent.add(sprite);sprite.userData.labelAspect=c.width/80;sprite.userData.labelHeight=s==='C184'?26:20;labels.push(sprite);return sprite;
+ }
+ function container(x,z,color,parent=group){const g=new THREE.Group();g.position.set(x,0,z);parent.add(g);box(5.8,2.3,2.5,mat(color),0,2,0,g);for(let n=-2.6;n<=2.6;n+=.4)box(.07,2.15,2.55,steel,n,2,0,g);return g;}
+ function truck(parent=group){const g=new THREE.Group();parent.add(g);box(6.8,.3,2.7,dark,0,.65,0,g);box(1.7,1.8,2.5,white,4,1.4,0,g);box(.07,.65,2.15,mat(0x8daecb),4.87,1.85,0,g);for(const x of [-2.1,1.8,4.1])for(const z of [-1.4,1.4]){const o=new THREE.Mesh(new THREE.CylinderGeometry(.48,.48,.28,12),dark);o.rotation.x=Math.PI/2;o.position.set(x,.5,z);g.add(o);}return g;}
+ function lane(x,z,length,color){box(length,.06,4.5,mat(color),x,.1,z);for(const side of [-1,1])box(length,.08,.13,white,x,.16,z+side*2.2);}
+ box(160,.5,100,mat(0xdfe9ed),0,-.4,5);box(38,.12,100,mat(0x9bc6d7),-42,-.08,5);box(.3,.3,90,white,-23,.12,0);
+ lane(9,0,64,0xc5d1db);lane(8,12,55,0xd1d9de);lane(8,23,55,0xd3e6e2);
+ // Connecting inspection routes and gate approach.
+ box(5,.05,26,mat(0xd1d9de),-12,.11,12);box(5,.05,26,mat(0xd1d9de),31,.11,12);
+ for(let x=-16;x<40;x+=5)box(1.8,.08,.12,white,x,.17,0);
+ text('INTAKE',5,-8,5.7,0);text('STANDARD INSPECTION',11,12,6,12);text('REFRIGERATED PRIORITY',12,12,6,23);
+ // Intake camera arch and actual gate.
+ for(const x of [-8,37]){for(const z of [-2.7,2.7])box(.3,4.7,.3,steel,x,2.35,z);box(.4,.4,6,blue,x,4.7,0);}
+ text('TRUCK GATE',6,37,6.2,0);
+ // Inspection bays: separate from the continuous main flow.
+ for(const [z,m] of [[12,amber],[23,green]]){box(11,.16,5,m,17,.18,z);for(const x of [11.6,22.4])for(const dz of [-2.6,2.6])box(.18,4,.18,steel,x,2,z+dz);box(11,.22,.5,m,17,4,z-2.6);box(11,.22,.5,m,17,4,z+2.6);}
+ box(1,2,1.2,blue,16,1,26.8);text('POWER',3,16,3,27);
+ const cable=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(16,1,26.8),new THREE.Vector3(14,.4,26),new THREE.Vector3(13.9,1.6,24.3)]),20,.055,6,false),dark);group.add(cable);cable.visible=false;
+ // Vessel and working quay crane.
+ const ship=new THREE.Group();group.add(ship);box(13,2,25,blue,-32,1,0,ship);box(13.2,.25,25.2,white,-32,2.1,0,ship);box(7,4,3,white,-32,4,-10,ship);box(7.1,.8,2.5,steel,-32,5,-10,ship);
+ for(const x of [-34,-28])for(const z of [-6,0,6])if(!(x===-28&&z===0))container(x,z,0xa9b7c8,ship);
+ for(const x of [-23,-18])for(const z of [-4,4])box(.5,12,.5,white,x,6,z);
+ box(21,.6,1,blue,-27,12.3,0);const hook=new THREE.Group();group.add(hook);box(6.4,.22,2.8,amber,0,0,0,hook);
+ const ropes=[-2.4,2.4].map(x=>box(.045,1,.045,dark,x,0,0));
+ // Hero reefer: openable roof and doors, twenty individual pallet stacks.
+ const hero=new THREE.Group();group.add(hero);box(6,.15,2.6,white,0,.08,0,hero);box(5.8,.04,2.4,mat(0xb2a38b),0,.19,0,hero);
+ const shell=new THREE.Group();hero.add(shell);box(6,2.5,.08,white,0,1.4,-1.3,shell);const frontWall=new THREE.Group();shell.add(frontWall);box(6,2.5,.08,white,0,1.4,1.3,frontWall);
+ for(let x=-2.8;x<3;x+=.27){box(.055,2.35,.06,steel,x,1.4,-1.36,shell);box(.055,2.35,.06,steel,x,1.4,1.36,frontWall);}
+ const roof=box(6,.1,2.6,white,0,2.68,0,hero);box(.16,2.6,2.6,white,-3,1.4,0,hero);box(.3,1.8,1.7,steel,-3.2,1.3,0,hero);
+ for(let z=-.65;z<.8;z+=.25)box(.32,.06,1.4,dark,-3.22,1.1+z,0,hero);
+ const doors=[-1,1].map(side=>{const h=new THREE.Group();h.position.set(3,.15,side*1.3);hero.add(h);box(.09,2.5,1.3,white,0,1.25,-side*.65,h);box(.13,2.15,.06,steel,.07,1.25,-side*.65,h);return h;});
+ const pallets=[];for(let row=0;row<10;row++)for(let col=0;col<2;col++){const p=new THREE.Group();p.position.set(-2.65+row*.57,.23,-.62+col*1.24);hero.add(p);box(.52,.10,1.1,mat(0xb49a70),0,.05,0,p);for(let h=0;h<3;h++){box(.48,.30,1.02,mat(0xb8c59f),0,.27+h*.32,0,p);for(const z of [-.35,0,.35])box(.29,.08,.21,mat(0xc35d62),0,.44+h*.32,z,p);}pallets.push(p);}
+ const inspector=new THREE.Group();group.add(inspector);box(.45,.65,.25,blue,0,1.05,0,inspector);for(const x of [-.13,.13])box(.15,.7,.17,dark,x,.4,0,inspector);const head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,10),mat(0xc99674));head.position.y=1.65;inspector.add(head);box(.64,.1,.4,white,0,1.82,0,inspector);box(.34,.08,.34,dark,-.3,1.2,-.25,inspector);
+ const outline=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(6.12,2.75,2.75)),new THREE.LineBasicMaterial({color:0x3674d4,transparent:true,opacity:.75}));outline.position.y=1.4;hero.add(outline);
+ const label=text('C184',3,0,4,0,hero,'#2059ae');
+ const carrier=truck();
+ const queue=[-5,3,11].map((x,i)=>{const g=truck();g.position.set(x,0,12);const c=container(0,0,[0xb6c1cc,0xbbaea0,0xb6c7c6][i],g);c.position.y=.05;return g;});
+ const busy=truck();busy.position.set(17,0,23);container(0,0,0xc5d3d0,busy);
+ const traffic=Array.from({length:3},(_,i)=>{const g=truck();container(0,0,[0xaebdcb,0xc6b9aa,0xa7bdb3][i],g);return g;});
+ const target=new THREE.Vector3(),desired=new THREE.Vector3();let active=false,previous=[],oldCamera=null,lastTime=0,follow=true,model=null;
+ const mix=(a,b,q)=>a+(b-a)*Math.max(0,Math.min(1,q));
+ function position(m){const t=m.phaseTime,q=m.duration?t/m.duration:0;let x=-28,y=3.2,z=0;
+  if(m.phase==='arriving'){z=mix(-16,0,q);ship.position.z=z;}
+  else{ship.position.z=0;if(m.phase==='unloading'){x=mix(-28,-17,Math.max(0,(q-.3)/.4));y=q<.3?mix(3.2,8.5,q/.3):q<.7?8.5:mix(8.5,.87,(q-.7)/.3);}
+   else if(m.phase==='intake'){x=mix(-17,-8,q);y=.87;}
+   else if(m.phase==='flagged'){x=-8;y=.87;}
+   else if(m.phase==='divert'){x=mix(-8,-12,Math.min(1,q*3));z=mix(0,12,Math.max(0,(q-.3)/.7));y=.87;}
+   else if(m.phase==='choice'){x=-12;y=.87;z=12;}
+   else if(m.phase==='queue'){y=.87;if(m.route==='priority'){z=mix(12,23,Math.min(1,t/2));x=mix(-12,17,Math.max(0,(t-7)/3));}else{z=12;x=t<15?mix(-12,-5,(t-12)/3):t<30?mix(-5,2,(t-27)/3):mix(2,17,(t-42)/3);}}
+   else if(m.phase==='inspection'||m.phase==='cleared'){x=17;y=.87;z=m.route==='priority'?23:12;}
+   else if(m.phase==='departing'){y=.87;z=m.route==='priority'?23:12;if(q<.18){x=17;}else if(q<.5){x=mix(17,31,(q-.18)/.32);}else if(q<.75){x=31;z=mix(z,0,(q-.5)/.25);}else{x=mix(31,46,(q-.75)/.25);z=0;}}
+   else{x=46;y=.87;z=0;}
+  }return {x,y,z};
+ }
+ function draw(t){if(!active||!model)return;const m=model,dt=Math.min(.1,(t-lastTime)/1000||.016);lastTime=t;const p=position(m);hero.position.set(p.x,p.y,p.z);hero.visible=m.phase!=='departed';carrier.visible=m.phase!=='arriving';carrier.position.set(m.phase==='unloading'?-17:p.x,0,p.z);
+  const q=m.duration?m.phaseTime/m.duration:0;let angle=0;
+  if(m.phase==='divert')angle=-Math.PI/2*Math.max(0,Math.min(1,(q-.2)/.3));
+  if(m.phase==='choice')angle=-Math.PI/2;
+  if(m.phase==='queue')angle=-Math.PI/2*(1-Math.max(0,Math.min(1,(m.phaseTime-(m.route==='priority'?2:0))/2)));
+  if(m.phase==='departing')angle=q<.5?mix(0,Math.PI/2,(q-.45)/.05):q<.75?Math.PI/2:mix(Math.PI/2,0,(q-.75)/.05);
+  hero.rotation.y=carrier.rotation.y=angle;
+
+  hook.position.set(m.phase==='unloading'?p.x:-28,m.phase==='unloading'?p.y+2.9:11,0);hook.visible=['arriving','unloading'].includes(m.phase);ropes.forEach((r,i)=>{r.visible=hook.visible;r.scale.y=Math.max(.1,12-hook.position.y);r.position.set(hook.position.x+(i?2.4:-2.4),(12+hook.position.y)/2,0);});
+  const cut=m.phase==='inspection'||m.phase==='cleared';const opening=cut?Math.min(1,m.phase==='cleared'?1:m.phaseTime/1.5):m.phase==='departing'?Math.max(0,1-m.phaseTime/.8):0;
+  roof.visible=frontWall.visible=!cut;doors.forEach((d,i)=>d.rotation.y=(i?1:-1)*opening*1.85);
+  outline.material.color.setHex(m.phase==='departing'||m.phase==='departed'?0x34896c:m.stage>=1?0xc48b24:0x3674d4);
+  inspector.visible=cut;inspector.position.set(20,0,(m.route==='priority'?23:12)+3.2);
+  cable.visible=m.route==='priority'&&(cut||(m.phase==='queue'&&m.phaseTime>=9.99));
+  const waitStart=15;const since=Math.max(0,m.elapsed-waitStart);queue.forEach((g,i)=>{const start=(2-i)*15,leave=start+15;g.position.x=since>=leave?Math.min(55,17+(since-leave)*4):i===2?17:i===1?mix(3,17,(since-12)/3):since<15?mix(-5,3,(since-12)/3):mix(3,17,(since-27)/3);g.visible=g.position.x<53;});busy.position.x=since<7?17:17+(since-7)*5;busy.visible=since<14;
+  traffic.forEach((g,i)=>{g.position.set(-17+(m.elapsed*2+i*19)%70,0,-7);});
+  if(follow){let distance= cut?20: m.phase==='divert'||m.phase==='choice'||m.phase==='queue'?54:55;
+   target.copy(hero.position).add(new THREE.Vector3(0,1.2,0));if(m.phase==='choice'){target.x+=9;target.z+=3;}if(m.phase==='departed'){target.set(7,1,8);distance=92;}
+   if(reduced){target.set(4,1,8);distance=100;}
+   const offset=new THREE.Vector3(0.35,.86,1).normalize().multiplyScalar(distance/Math.min(1,camera.aspect));desired.copy(target).add(offset);
+   const k=reduced?1:1-Math.exp(-dt*3);camera.position.lerp(desired,k);controls.target.lerp(target,k);
+  }
+  controls.update();
+  for(const label of labels){const distance=camera.position.distanceTo(label.getWorldPosition(new THREE.Vector3()));const height=label.userData.labelHeight*2*distance*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1,host.clientHeight);label.scale.set(height*label.userData.labelAspect,height,1);}
+ }
+ const api={get active(){return active;},start(m){model=m;if(!active){previous=scene.children.filter(o=>o!==group&&!o.isLight).map(o=>[o,o.visible]);previous.forEach(([o])=>o.visible=false);oldCamera={pos:camera.position.clone(),target:controls.target.clone(),min:controls.minDistance};}active=true;group.visible=true;carrier.rotation.y=hero.rotation.y=0;controls.minDistance=8;follow=true;lastTime=performance.now();},stop(){active=false;group.visible=false;previous.forEach(([o,v])=>o.visible=v);if(oldCamera){camera.position.copy(oldCamera.pos);controls.target.copy(oldCamera.target);controls.minDistance=oldCamera.min;}controls.update();},draw,refocus(){follow=true;},get state(){return {position:hero.position.toArray(),pallets:pallets.length,doorsOpen:Math.abs(doors[0].rotation.y)>1,cutaway:!roof.visible,powerConnected:cable.visible,follow};}};
+ host.addEventListener('pointerdown',()=>{if(active)follow=false;});return api;
 }
 
 </script>
@@ -640,6 +770,7 @@ function resize() {
  if (!w || !h) return;
  camera.aspect=w/h; camera.updateProjectionMatrix();
  if(renderer) renderer.setSize(w,h,false);
+ if(window.c184View?.active){window.c184View.refocus();return;}
  if(inspectionAsset)frameInspection(inspectionCamera);else if(window.focusPort)window.focusPort(viewFocus);else fitPort();
 }
 new ResizeObserver(resize).observe(host); resize();
@@ -706,6 +837,7 @@ if(renderer){
  let down=null;
  renderer.domElement.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];camAnim=null;});
  renderer.domElement.addEventListener('pointerup',e=>{
+  if(window.c184View?.active)return;
   if(!down||Math.hypot(e.clientX-down[0],e.clientY-down[1])>5)return;
   const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);raycaster.setFromCamera(pointer,camera);
   if(inspectionAsset){const target=raycaster.intersectObjects(inspectionAsset.group.children,true).find(h=>h.object.userData.inspection&&(inspectionOpen||h.object.userData.inspection.kind==='seal'));if(target&&window.selectInspectionPart){const part=target.object.userData.inspection;window.selectInspectionPart(part.kind,part.index);}return;}
@@ -717,9 +849,11 @@ if(renderer){
  });
 }
 
+if(renderer&&controls)window.c184View=buildC184Scene({THREE,scene,camera,controls,host,reduced});
 function animate(t) {
  requestAnimationFrame(animate);
  if (!host.clientWidth || !host.clientHeight) return;
+ if(window.c184View?.active){camAnim=null;window.c184View.draw(t);renderer.render(scene,camera);return;}
  const f=currentRun.frames[currentStep],p=f.plan;
  if(lastRun!==currentRun||lastStep!==currentStep){
   visibleCargo=currentRun.containers.filter(c=>c.dischargeStep!==null&&c.dischargeStep<=currentStep&&(c.exitStep===null||c.exitStep>currentStep)).slice(0,252);
@@ -1277,6 +1411,54 @@ cargoModelProfile=function(number){
 const priorityInspectionUI=renderInspectionUI;
 renderInspectionUI=function(){priorityInspectionUI();if(!cargoInspection||$('scenario').value!=='priority')return;prioritySelectedNumber=cargoInspection.number;const c=PRIORITY_CARGO.find(b=>b.number===prioritySelectedNumber);if(!c)return;const panel=document.createElement('section');panel.className='priority-inspection-evidence';panel.innerHTML=`<h3>${esc(c.cargo)} · mock source evidence</h3><p>${esc(c.holdReason||'No blocking discrepancy in the mocked records.')}</p><p></p><button class="button" id="inspectionPriorityEvidence">Gate decisions →</button>`;inspectionPanel.prepend(panel);$('inspectionPriorityEvidence').onclick=()=>{closeCargoInspection(false);location.hash='p-gate';sendPriority('route',{screen:'gate',boxId:c.id});};};
 recalc();navigate();showPriorityPage();
+
+</script>
+<script>
+// Follow C184 is a guided presentation alongside, rather than a replacement for, the 24-hour model.
+(()=>{
+ const model=new C184Journey();let active=false,lastFrame=0,lastPhase='',lastSecond=-1,speed=2;
+ const launch=document.createElement('section');launch.className='c184-launch';launch.innerHTML='<button class="button" id="launchC184">Run C184 demo</button><small>Follow one perishable container through inspection and release.</small>';
+ document.querySelector('.demo-disclosure').append(launch);
+ const header=document.createElement('section');header.className='c184-header';header.hidden=true;header.innerHTML='<div><span class="badge">Demo data · guided scenario</span><h2>Follow C184</h2><p>Chilled strawberries · refrigeration working · near-term delivery window</p></div><div class="c184-header-actions"><button class="button" id="restartC184">Restart</button><button class="button" id="exitC184">Exit demo</button></div><ol class="c184-progress" aria-label="C184 journey">'+['Arrived','Flagged','Inspection','Cleared','Departed'].map(s=>`<li>${s}</li>`).join('')+'</ol>';
+ $('kpis').before(header);
+ const panel=document.createElement('aside');panel.className='card c184-panel';panel.hidden=true;document.querySelector('.live-grid').append(panel);
+ panel.innerHTML='<div class="c184-panel-top"><span class="badge">C184</span><span id="c184Status" role="status"></span></div><h2 id="c184Title"></h2><p id="c184Description"></p><dl class="c184-stats"><div><dt>Elapsed</dt><dd id="c184Elapsed"></dd></div><div><dt>Queue position</dt><dd id="c184Queue"></dd></div></dl><div id="c184Evidence"></div><div id="c184Actions" class="c184-actions"></div><div id="c184Timing"></div><details class="c184-history"><summary>Journey details</summary><p>Demo clock: 1 real second = <span id="c184SpeedNote">2</span> simulated minutes. Terminal cost and inventory projections are paused separately.</p><ol id="c184Events"></ol></details>';
+ const bar=document.createElement('div');bar.className='c184-playbar';bar.hidden=true;bar.innerHTML='<button class="button" id="pauseC184">Pause</button><span id="c184Clock"></span><label>Speed <select id="speedC184" aria-label="Demo playback speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="4">4×</option></select></label><button class="button" id="followC184">Follow container</button>';
+ document.querySelector('.port-view').append(bar);
+ const alert=document.createElement('dialog');alert.id='c184Alert';alert.setAttribute('role','alertdialog');alert.setAttribute('aria-labelledby','c184AlertTitle');alert.setAttribute('aria-describedby','c184AlertDescription');alert.innerHTML='<div class="c184-alert-band">Simulation paused · C184 held</div><div class="padded"><h2 id="c184AlertTitle">Pallet count mismatch</h2><p id="c184AlertDescription">20 declared · 18 recorded.<br>C184 cannot leave until the discrepancy is resolved.</p><small>Mock intake records · chilled strawberries</small><div class="ops-actions"><button class="button" id="holdC184">Keep paused</button><button class="button primary" id="investigateC184">Investigate →</button></div></div>';
+ document.body.append(alert);
+ const names={arriving:'Vessel arriving',unloading:'Crane unloading',intake:'Moving to intake',flagged:'Data discrepancy',divert:'Diverting to inspection',choice:'Prioritize this cargo?',queue:'Waiting for inspection',inspection:'Verifying 20 pallets',cleared:'Investigation complete',departing:'Released · leaving terminal',departed:'C184 departed'};
+ const descriptions={arriving:'Follow the blue outline from ship to gate.',unloading:'The quay crane transfers C184 to a terminal vehicle.',intake:'Manifest and intake records are checked at the checkpoint.',flagged:'Pallet count mismatch: 20 declared · 18 recorded.',divert:'C184 leaves the main flow. Other cargo keeps moving.',choice:'Perishable cargo with a near-term delivery window. Move C184 to the refrigerated priority inspection bay.',queue:'Refrigeration working. Inspection is required on both routes.',inspection:'Doors open. Count the pallets and reconcile the intake record.',cleared:'20 pallets verified. Intake record corrected. No other holds.',departing:'Release approved. Doors close before the vehicle returns to the outbound route.',departed:'All checks completed. Chilled strawberries are on their way.'};
+ function clock(minutes){const s=Math.floor(minutes*60+1e-6);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+ function ui(force=false){if(!active)return;const changed=lastPhase!==model.phase,second=Math.floor(model.elapsed*60);if(!force&&!changed&&second===lastSecond)return;lastPhase=model.phase;lastSecond=second;
+  $('c184Title').textContent=names[model.phase];$('c184Description').textContent=descriptions[model.phase];$('c184Elapsed').textContent=clock(model.elapsed)+' min';$('c184Clock').textContent=clock(model.elapsed)+' elapsed';$('c184Queue').textContent=model.queuePosition?`${model.queuePosition}${model.route==='priority'?' · priority':' · standard'}`:model.phase==='choice'?'4 · standard':model.phase==='inspection'?'In bay':model.stage>=3?'Complete':'—';
+  $('c184Status').textContent=model.awaitingDecision?(model.phase==='departed'?'Complete':'Decision required'):model.paused?'Paused':'Running';
+  $('pauseC184').disabled=model.awaitingDecision;$('pauseC184').textContent=model.awaitingDecision?(model.phase==='departed'?'Complete':'Paused'):model.paused?'Resume':'Pause';
+  header.querySelectorAll('li').forEach((el,i)=>{el.classList.toggle('done',i<model.stage);el.classList.toggle('current',i===model.stage);if(i===model.stage)el.setAttribute('aria-current','step');else el.removeAttribute('aria-current');});
+  if(changed||force){
+   $('c184Evidence').innerHTML=model.stage>0?`<dl class="c184-evidence"><div><dt>Manifest</dt><dd>20 pallets</dd></div><div><dt>Intake record</dt><dd>${model.stage>=3?'20 · corrected':'18 pallets'}</dd></div>${model.stage>=3?'<div><dt>Finding</dt><dd>Two pallets missed at intake</dd></div>':'<div><dt>Hold reason</dt><dd>Conflicting pallet counts</dd></div>'}</dl>`:'';
+   $('c184Actions').innerHTML=model.phase==='flagged'?'<button class="button primary" data-c184-action="investigate">Investigate →</button>':model.phase==='choice'?'<span class="badge">Suggested · scripted demo</span><button class="button primary" data-c184-action="priority">Approve priority bay</button><button class="button" data-c184-action="standard">Keep standard queue</button><small>Priority changes queue position. It does not skip inspection.</small>':model.phase==='cleared'?'<button class="button primary" data-c184-action="release">Approve release</button><small>C184 stays held until you approve.</small>':model.phase==='departed'?'<button class="button" data-c184-action="restart">Replay journey</button>':'';
+   $('c184Events').innerHTML=model.events.map(e=>`<li><time>${clock(e.at)}</time><span>${esc(e.text)}</span></li>`).join('');
+  }
+  $('c184Timing').innerHTML=model.route?`<div class="c184-comparison"><strong>${model.route==='priority'?'35 minutes less waiting':'Standard queue selected'}</strong><div><span>Priority</span><b>10 min wait + 15 min check</b></div><div><span>Standard</span><b>45 min wait + 15 min check</b></div>${model.phase==='queue'?`<p>${Math.ceil(model.duration-model.phaseTime)} min until inspection</p>`:model.phase==='inspection'?`<p>${Math.ceil(15-model.phaseTime)} min of inspection remaining</p>`:''}<small>Mock comparison · identical inspection</small></div>`:'';
+  if(changed&&model.phase==='flagged'){alert.showModal();$('investigateC184').focus();}
+  if(changed&&['choice','cleared'].includes(model.phase)){$('c184Actions').querySelector('button')?.focus({preventScroll:true});}
+ }
+ function start(){if(!window.c184View){announce('The 3D demo needs WebGL. Reload with a supported browser.');return;}
+  if(conflictPopup.open)conflictPopup.close();closeCargoInspection(false);playing=false;location.hash='live';
+  model.reset();active=true;lastPhase='';lastSecond=-1;document.body.classList.add('c184-active');header.hidden=panel.hidden=bar.hidden=false;alert.close();window.c184View.start(model);ui(true);$('pauseC184').focus({preventScroll:true});
+  document.querySelector('.port-view').scrollIntoView({behavior:reduced?'instant':'smooth',block:'center'});
+ }
+ function stop(){if(!active)return;active=false;alert.close();window.c184View.stop();header.hidden=panel.hidden=bar.hidden=true;document.body.classList.remove('c184-active');render();$('launchC184').focus({preventScroll:true});}
+ function action(key){if(key==='restart'){start();return;}let ok=false;if(key==='investigate')ok=model.investigate();if(key==='priority'||key==='standard')ok=model.choose(key);if(key==='release')ok=model.release();if(ok){alert.close();window.c184View.refocus();ui(true);if(!model.awaitingDecision)$('pauseC184').focus({preventScroll:true});}}
+ $('launchC184').onclick=start;$('restartC184').onclick=start;$('exitC184').onclick=stop;$('pauseC184').onclick=()=>{model.toggle();ui(true);};$('followC184').onclick=()=>window.c184View.refocus();$('speedC184').onchange=e=>{speed=+e.target.value;$('c184SpeedNote').textContent=speed;};
+ $('investigateC184').onclick=()=>action('investigate');$('holdC184').onclick=()=>{alert.close();panel.querySelector('[data-c184-action=investigate]')?.focus({preventScroll:true});};panel.addEventListener('click',e=>{const b=e.target.closest('[data-c184-action]');if(b)action(b.dataset.c184Action);});
+ window.addEventListener('hashchange',()=>{if(active&&location.hash!=='#live')stop();});$('scenario').addEventListener('change',stop);
+ function frame(t){requestAnimationFrame(frame);const delta=lastFrame?Math.min(.1,(t-lastFrame)/1000):0;lastFrame=t;if(active&&!document.hidden){model.advance(delta*speed);ui();}}
+ requestAnimationFrame(frame);
+ // Read-only model access plus normal actions aid deterministic journey verification.
+ window.c184Demo={start,stop,action,model,get active(){return active;},refresh:()=>ui(true)};
+})();
 
 </script>
 </body>

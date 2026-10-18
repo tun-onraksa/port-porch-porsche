@@ -19,6 +19,8 @@ body = (read('style.css') + read('body.html')
         + '<script>\n' + read('priority-data.js') + '\n</script>\n'
         + '<script>\n' + read('sim.js') + '\n</script>\n'
         + '<script>\n' + read('cargo-models.js') + '\n</script>\n'
+        + '<script>\n' + read('c184-model.js') + '\n</script>\n'
+        + '<script>\n' + read('c184-scene.js') + '\n</script>\n'
         + '<script>\n' + read('scene.js') + '\n</script>\n'
         + '<script>\n' + read('game.js') + '\n</script>\n'
         + '<script>\n' + read('operations.js') + '\n</script>\n'
@@ -29,7 +31,8 @@ body = (read('style.css') + read('body.html')
         + '<script>\n' + read('projection.js') + '\n</script>\n'
         + '<script>\n' + read('conflict-scene.js') + '\n</script>\n'
         + '<script>\n' + read('dashboard-data.js') + '\n</script>\n'
-        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n')
+        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n'
+        + '<script>\n' + read('c184-demo.js') + '\n</script>\n')
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
         + read('head.html')

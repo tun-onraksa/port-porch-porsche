@@ -1,5 +1,15 @@
 # PortTable — Long Beach cost-planning demo
 
+## Follow C184 guided demo
+
+In **Live operations**, open **Operating plan → Try a cargo conflict**, then choose **Run C184 demo** below **Run conflict demo**. The existing scenario selector stays hidden; all three underlying scenarios are retained. Exit demo restores the terminal view with its scenario, clock, resources and costs unchanged and paused.
+
+This separate, mocked presentation follows chilled strawberries through arrival, unloading, a 20-versus-18 pallet discrepancy, inspection and approved release. At the red hold alert choose **Investigate**, then choose priority or standard inspection. Both routes require a 15-minute inspection and a separate **Approve release** action. Priority waits 10 minutes; standard waits 45. Including shared handling, the journeys take 45 and 80 simulated minutes. This demo does not feed invented cargo or inspection costs into the terminal dashboards.
+
+Use Pause, Speed, Follow container, Restart and Exit demo. Dragging the scene temporarily stops camera tracking; Follow container restores it. Reduced motion uses a steady wide camera. Journey details record the demo decisions and times; restarting clears that demo history.
+
+`src/c184-model.js` contains the deterministic clock and approval gates, `src/c184-scene.js` the detailed 3D assets and movement, and `src/c184-demo.js` the UI. Rebuild with `python3 build.py`. Verify both timing paths and release gates with `node tests/c184-journey.cjs`.
+
 ## Integrated Priority Lanes workspace
 
 The `dev` branch combines PortTable's 3D simulation, resource workbench, cargo inspections and calculation audits with five Priority Lanes V2 dashboards. Serve this directory and open `index.html#p-gate` for Gate Command, or `index.html#live` for the simulation. Pages are grouped under **Operations**, **Planning**, and **Reference** and use the workspace’s light-only appearance.
