@@ -14,7 +14,7 @@ def read(name):
         return f.read()
 
 
-body = (read('style.css') + read('body.html')
+body = (read('style.css') + read('brand.css') + read('body.html')  # brand.css: At the Gate brand layer
         + '<script>\n' + read('terminal49.js') + '\n</script>\n'
         + '<script>\n' + read('priority-data.js') + '\n</script>\n'
         + '<script>\n' + read('sim.js') + '\n</script>\n'
@@ -28,7 +28,8 @@ body = (read('style.css') + read('body.html')
         + '<script>\n' + read('inspection.js') + '\n</script>\n'
         + '<script>\n' + read('projection.js') + '\n</script>\n'
         + '<script>\n' + read('conflict-scene.js') + '\n</script>\n'
-        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n')
+        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n'
+        + '<script>\n' + read('brand.js') + '\n</script>\n')  # brand.js: At the Gate brand layer
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
         + read('head.html')

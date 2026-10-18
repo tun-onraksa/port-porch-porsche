@@ -1,0 +1,38 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+/* At the Gate brand layer (visual system v1.0, 17 Oct 2026).
+   Everything the brand changes in the PortTable shell lives in this file and src/brand.js.
+   To go back to the previous look, remove the two brand lines from build.py and rebuild.
+   Bridge rule: green means "this came from Terminal49" (--t49) and nothing else. */
+:root,:root:not(.x){color-scheme:light;--page:#F5F4EF;--surface:#FFFFFF;--sidebar:#EFEEE8;--ink:#20343E;--muted:#596B73;--line:#D9E0E1;--accent:#32677B;--accent-soft:#E8F0F3;--green:#3E6654;--green-soft:#EAF0EB;--amber:#805C16;--amber-soft:#F6F0DC;--red:#A34638;--red-soft:#F6E9E5;--t49:#15803D;--shadow:none;--radius:8px;font-family:Inter,Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root,:root:not(.x){color-scheme:light;--page:#F5F4EF;--surface:#FFFFFF;--sidebar:#EFEEE8;--ink:#20343E;--muted:#596B73;--line:#D9E0E1;--accent:#32677B;--accent-soft:#E8F0F3;--green:#3E6654;--green-soft:#EAF0EB;--amber:#805C16;--amber-soft:#F6F0DC}}
+body{font-family:Inter,Arial,sans-serif;font-feature-settings:'tnum' 1;-webkit-font-smoothing:antialiased}
+h1{font-weight:600;letter-spacing:-.4px}
+h2,h3{font-weight:600}
+.eyebrow,.nav-label,.nav-group-label{color:var(--accent);letter-spacing:.08em}
+.container-link,.mono,code,kbd{font-family:'IBM Plex Mono',ui-monospace,monospace}
+/* Primary action is ink; deep blue stays for links and selection. */
+.button.primary,.ib.primary,.button.primary:hover,.ib.primary:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.button,.ib,select,input,textarea{border-radius:6px}
+nav a[aria-current=page]{color:var(--ink);background:var(--surface);box-shadow:inset 3px 0 0 var(--accent)}
+.nav-count{background:var(--accent-soft);color:var(--accent)}
+*:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Wordmark: the cube mark and the Terminal49 co-brand line (inserted by brand.js). */
+.brand{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-bottom:6px}
+.brand-mark{background:none;color:var(--ink);width:24px;height:24px;padding:0;border-radius:0}
+.brand-mark svg{display:block}
+.brand-cobrand{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:0 10px 22px}
+.brand-cobrand i,.t49-dot{width:8px;height:8px;border-radius:2px;background:var(--t49);display:inline-block;flex-shrink:0}
+.sidebar-source p:first-of-type::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--t49);margin-right:7px}
+/* Status colours from the brand guide (critical, review, cleared), always with a label. */
+.button.danger{background:var(--red);border-color:var(--red)}
+#sceneConflictPopup{border-color:var(--red)}
+.conflict-popup-head{background:var(--red)}
+.scene-conflict-banner{border-color:var(--red)}
+.has-conflict{box-shadow:0 0 0 2px var(--red)}
+.zone-water{background:#D7E6EC;color:#2B5566}
+.port-view{background:#EEF2F0}
+.port-view .home{background:#fff;color:var(--ink)}
+.source-banner{border-color:color-mix(in srgb,var(--accent) 20%,transparent)}
+.activity-flow b{color:var(--accent)}
+</style>

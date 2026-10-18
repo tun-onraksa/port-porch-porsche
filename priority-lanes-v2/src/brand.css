@@ -1,0 +1,89 @@
+/* At the Gate brand layer (visual system v1.0, 17 Oct 2026) for the Priority Lanes dashboards.
+   Imported last from main.tsx, so it overrides the theme tokens in index.css, standalone and
+   embedded, light and dark. To go back to the previous look, delete the import line in main.tsx.
+   Bridge rule: green (--color-live) means "this came from Terminal49" and nothing else. */
+
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+html:root:root {
+  color-scheme: light;
+  --font-sans: 'Inter Variable', Inter, Arial, ui-sans-serif, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-bg: #f5f4ef;
+  --color-panel: #ffffff;
+  --color-panel-2: #f3f2ed;
+  --color-panel-3: #e8f0f3;
+  --color-line: #d9e0e1;
+  --color-line-2: #c3cdd0;
+  --color-ink: #20343e;
+  --color-ink-2: #3b4f59;
+  --color-muted: #596b73;
+  --color-dim: #5f6e75;
+
+  --color-good: #3e6654;
+  --color-warn: #805c16;
+  --color-serious: #9a5424;
+  --color-crit: #a34638;
+  --color-info: #32677b;
+
+  --color-sim: #5f6e75;
+  --color-live: #15803d;
+
+  --color-a-release: #8db59c;
+  --color-a-watch: #9cc3d1;
+  --color-a-flag: #e0c766;
+  --color-a-slow: #b7c0c3;
+  --color-a-reroute: #a9b8de;
+  --color-a-inspect: #dda982;
+  --color-a-hold: #e09a8e;
+  --color-a-close: #c98c9c;
+
+  --color-s-1: #32677b;
+  --color-s-3: #a8925f;
+  --color-s-other: #b7c0c3;
+
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: #cfe0e7;
+}
+
+*:focus-visible {
+  outline-color: var(--color-info);
+}
+
+/* A few buttons hard-code colours from the old dark palette. */
+[class*='hover:bg-[#4b95ec]']:hover {
+  background-color: #2a5868;
+}
+[class*='text-[#04130a]'] {
+  color: #ffffff;
+}
+
+/* Standalone header logo (App.tsx) keeps its old dark fills; restyle it in brand colours. */
+svg rect[fill='#111a2b'] {
+  fill: #20343e;
+  stroke: #20343e;
+}
+svg path[stroke='#21b35b'] {
+  stroke: #ffffff;
+}
+svg circle[fill='#ec835a'] {
+  fill: #cdbd9c;
+}

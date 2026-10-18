@@ -45,6 +45,44 @@
 /* Integrated decision intelligence navigation and content. */
 .sidebar #navigation{overflow-y:auto;min-height:0}.nav-group-label{font-size:10px;font-weight:650;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:20px 12px 8px}.priority-page #main{padding:16px;max-width:none}.priority-page #priorityDashboard{height:calc(100dvh - 100px);min-height:550px}#priorityFrame{width:100%;height:100%;border:1px solid var(--line);border-radius:12px;background:var(--page)}.priority-inspection-evidence{padding:14px;border:1px solid var(--line);border-radius:9px;margin-bottom:18px;background:var(--accent-soft)}.priority-inspection-evidence p{font-size:12px}.sidebar{max-height:100dvh}.sidebar-footer{flex-shrink:0}@media(max-width:760px){.priority-page #main{padding:8px}.priority-page #priorityDashboard{height:calc(100dvh - 85px)}#priorityFrame{border-radius:8px}}
 </style>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+/* At the Gate brand layer (visual system v1.0, 17 Oct 2026).
+   Everything the brand changes in the PortTable shell lives in this file and src/brand.js.
+   To go back to the previous look, remove the two brand lines from build.py and rebuild.
+   Bridge rule: green means "this came from Terminal49" (--t49) and nothing else. */
+:root,:root:not(.x){color-scheme:light;--page:#F5F4EF;--surface:#FFFFFF;--sidebar:#EFEEE8;--ink:#20343E;--muted:#596B73;--line:#D9E0E1;--accent:#32677B;--accent-soft:#E8F0F3;--green:#3E6654;--green-soft:#EAF0EB;--amber:#805C16;--amber-soft:#F6F0DC;--red:#A34638;--red-soft:#F6E9E5;--t49:#15803D;--shadow:none;--radius:8px;font-family:Inter,Arial,sans-serif}
+@media(prefers-color-scheme:dark){:root,:root:not(.x){color-scheme:light;--page:#F5F4EF;--surface:#FFFFFF;--sidebar:#EFEEE8;--ink:#20343E;--muted:#596B73;--line:#D9E0E1;--accent:#32677B;--accent-soft:#E8F0F3;--green:#3E6654;--green-soft:#EAF0EB;--amber:#805C16;--amber-soft:#F6F0DC}}
+body{font-family:Inter,Arial,sans-serif;font-feature-settings:'tnum' 1;-webkit-font-smoothing:antialiased}
+h1{font-weight:600;letter-spacing:-.4px}
+h2,h3{font-weight:600}
+.eyebrow,.nav-label,.nav-group-label{color:var(--accent);letter-spacing:.08em}
+.container-link,.mono,code,kbd{font-family:'IBM Plex Mono',ui-monospace,monospace}
+/* Primary action is ink; deep blue stays for links and selection. */
+.button.primary,.ib.primary,.button.primary:hover,.ib.primary:hover{background:var(--ink);border-color:var(--ink);color:#fff}
+.button,.ib,select,input,textarea{border-radius:6px}
+nav a[aria-current=page]{color:var(--ink);background:var(--surface);box-shadow:inset 3px 0 0 var(--accent)}
+.nav-count{background:var(--accent-soft);color:var(--accent)}
+*:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Wordmark: the cube mark and the Terminal49 co-brand line (inserted by brand.js). */
+.brand{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding-bottom:6px}
+.brand-mark{background:none;color:var(--ink);width:24px;height:24px;padding:0;border-radius:0}
+.brand-mark svg{display:block}
+.brand-cobrand{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:0 10px 22px}
+.brand-cobrand i,.t49-dot{width:8px;height:8px;border-radius:2px;background:var(--t49);display:inline-block;flex-shrink:0}
+.sidebar-source p:first-of-type::before{content:'';display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--t49);margin-right:7px}
+/* Status colours from the brand guide (critical, review, cleared), always with a label. */
+.button.danger{background:var(--red);border-color:var(--red)}
+#sceneConflictPopup{border-color:var(--red)}
+.conflict-popup-head{background:var(--red)}
+.scene-conflict-banner{border-color:var(--red)}
+.has-conflict{box-shadow:0 0 0 2px var(--red)}
+.zone-water{background:#D7E6EC;color:#2B5566}
+.port-view{background:#EEF2F0}
+.port-view .home{background:#fff;color:var(--ink)}
+.source-banner{border-color:color-mix(in srgb,var(--accent) 20%,transparent)}
+.activity-flow b{color:var(--accent)}
+</style>
 <a href="#main" class="skip">Skip to content</a>
 <div class="workspace">
 <aside class="sidebar" id="sidebar"><a class="brand" href="#orders"><span class="brand-mark">P</span>PortTable</a><div class="workspace-name"><span class="port-dot"></span><div><b>Long Beach</b><small>Terminal planning workspace</small></div></div><p class="nav-label">WORKSPACE</p><nav id="navigation" aria-label="Main navigation"></nav><div class="sidebar-source"><span class="badge">Demo workspace</span><p>Terminal49 snapshot<br><b>17 Oct 2026</b></p><small id="saveState">Changes saved on this device</small></div></aside>
@@ -1319,6 +1357,33 @@ cargoModelProfile=function(number){
 const priorityInspectionUI=renderInspectionUI;
 renderInspectionUI=function(){priorityInspectionUI();if(!cargoInspection||$('scenario').value!=='priority')return;prioritySelectedNumber=cargoInspection.number;const c=PRIORITY_CARGO.find(b=>b.number===prioritySelectedNumber);if(!c)return;const panel=document.createElement('section');panel.className='priority-inspection-evidence';panel.innerHTML=`<h3>${esc(c.cargo)} · mock source evidence</h3><p>${esc(c.holdReason||'No blocking discrepancy in the mocked records.')}</p><p>Illustrative interior geometry; the evidence dashboard contains the scenario’s declared cargo and measurements.</p><button class="button" id="inspectionPriorityEvidence">Review evidence & decide →</button>`;inspectionPanel.prepend(panel);$('inspectionPriorityEvidence').onclick=()=>{closeCargoInspection(false);location.hash='p-box';sendPriority('route',{screen:'box',boxId:c.id});};};
 recalc();navigate();showPriorityPage();
+
+</script>
+<script>
+// At the Gate brand layer: wordmark, co-brand line and page title for the PortTable shell.
+// Colours and type live in src/brand.css. Change BRAND_NAME to rename the product everywhere it is shown.
+(function () {
+  const BRAND_NAME = 'At the Gate';
+  const OLD_NAME = 'PortTable';
+  const MARK = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 21 7v10l-9 4.5L3 17V7z"/><path d="M3 7l9 4.5L21 7M12 11.5v10"/></svg>';
+
+  const brand = document.querySelector('.brand');
+  if (brand) {
+    brand.innerHTML = '<span class="brand-mark">' + MARK + '</span>' + BRAND_NAME;
+    brand.setAttribute('aria-label', BRAND_NAME + ', home');
+    const co = document.createElement('div');
+    co.className = 'brand-cobrand';
+    co.innerHTML = '<i aria-hidden="true"></i>Built on Terminal49';
+    brand.after(co);
+  }
+
+  const fixTitle = () => {
+    if (document.title.includes(OLD_NAME)) document.title = document.title.split(OLD_NAME).join(BRAND_NAME);
+  };
+  fixTitle();
+  const t = document.querySelector('title');
+  if (t) new MutationObserver(fixTitle).observe(t, { childList: true, characterData: true, subtree: true });
+})();
 
 </script>
 </body>
