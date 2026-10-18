@@ -29,7 +29,8 @@ body = (read('style.css') + read('body.html')
         + '<script>\n' + read('projection.js') + '\n</script>\n'
         + '<script>\n' + read('conflict-scene.js') + '\n</script>\n'
         + '<script>\n' + read('dashboard-data.js') + '\n</script>\n'
-        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n')
+        + '<script>\n' + read('priority-workspace.js') + '\n</script>\n'
+        + '<script>\n' + read('t49-status.js') + '\n</script>\n')
 page = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
         + read('head.html')

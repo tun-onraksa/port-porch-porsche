@@ -7,7 +7,7 @@ import type { Screen } from './state.tsx'
 import { cx, Segmented } from './ui/primitives.tsx'
 import { Guide } from './ui/Guide.tsx'
 import { PreArrival } from './screens/PreArrival.tsx'
-import { GateCommand } from './screens/GateCommand.tsx'
+import { Dashboard } from './screens/Dashboard.tsx'
 import { BoxDetail } from './screens/BoxDetail.tsx'
 import { GateForecast } from './screens/GateForecast.tsx'
 import { Drill } from './screens/Drill.tsx'
@@ -20,7 +20,7 @@ import { INBOUND } from './data/scenario.ts'
 
 const NAV: { id: Screen; label: string; icon: LucideIcon; sub: string }[] = [
   { id: 'radar', label: 'Pre-Arrival Radar', icon: Radar, sub: 'Days before' },
-  { id: 'gate', label: 'Gate Command', icon: LayoutDashboard, sub: 'Today' },
+  { id: 'gate', label: 'Dashboard', icon: LayoutDashboard, sub: 'Today' },
   { id: 'box', label: 'Four Stories', icon: Layers, sub: 'Box detail' },
   { id: 'forecast', label: 'Gate Forecast', icon: ChartColumn, sub: 'Next 36h' },
   { id: 'drill', label: 'Drill Mode', icon: Siren, sub: 'Rehearse' },
@@ -137,7 +137,7 @@ export default function App() {
 
         <main id="main" className="min-w-0 flex-1 px-4 pt-4 pb-40 lg:px-6 lg:pt-5">
           {screen === 'radar' && <PreArrival />}
-          {screen === 'gate' && <GateCommand />}
+          {screen === 'gate' && <Dashboard />}
           {screen === 'box' && <BoxDetail />}
           {screen === 'forecast' && <GateForecast />}
           {screen === 'drill' && <Drill />}
