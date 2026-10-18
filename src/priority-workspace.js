@@ -67,5 +67,7 @@ cargoModelProfile=function(number){
 const priorityInspectionUI=renderInspectionUI;
 renderInspectionUI=function(){priorityInspectionUI();if(!cargoInspection||$('scenario').value!=='priority')return;prioritySelectedNumber=cargoInspection.number;const c=PRIORITY_CARGO.find(b=>b.number===prioritySelectedNumber);if(!c)return;const panel=document.createElement('section');panel.className='priority-inspection-evidence';panel.innerHTML=`<h3>${esc(c.cargo)} · mock source evidence</h3><p>${esc(c.holdReason||'No blocking discrepancy in the mocked records.')}</p><p></p><button class="button" id="inspectionPriorityEvidence">Gate decisions →</button>`;inspectionPanel.prepend(panel);$('inspectionPriorityEvidence').onclick=()=>{closeCargoInspection(false);location.hash='p-gate';sendPriority('route',{screen:'gate',boxId:c.id});};};
 recalc();navigate();showPriorityPage();
-// Dashboard is the home page: a bare visit opens it on the 112-container Priority Lanes scenario.
-if(window.landedHome){ensurePriorityScenario();showPriorityPage();}
+// Dashboard is the home page and always shows the 112-container Priority Lanes scenario (the scenario picker
+// is hidden, so it can't be switched by hand). A bare visit lands here.
+if(window.landedHome||activePage==='p-gate'){ensurePriorityScenario();showPriorityPage();}
+addEventListener('hashchange',()=>{if(activePage==='p-gate'&&$('scenario').value!=='priority'){ensurePriorityScenario();showPriorityPage();}});
